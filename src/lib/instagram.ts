@@ -64,8 +64,13 @@ export async function getInstagramQuota(rapidApiKey: string) {
 
   const remaining = res.headers.get('x-ratelimit-requests-remaining') || '0';
   const limit = res.headers.get('x-ratelimit-requests-limit') || '0';
+  const resetSeconds = res.headers.get('x-ratelimit-requests-reset') || '0';
 
-  return { limit: parseInt(limit, 10), remaining: parseInt(remaining, 10) };
+  return {
+    limit: parseInt(limit, 10),
+    remaining: parseInt(remaining, 10),
+    resetSeconds: parseInt(resetSeconds, 10)
+  };
 }
 
 export async function getInstagramPostByShortcode(shortcode: string, rapidApiKey: string): Promise<InstagramPost> {

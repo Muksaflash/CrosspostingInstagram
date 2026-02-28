@@ -63,7 +63,6 @@ function QuotaWidget({ quotas, fetchQuotas, loading }: any) {
               <>
                 <p className="text-gray-900">{quotas.instagram.limit - quotas.instagram.remaining} из {quotas.instagram.limit}</p>
                 {quotas.instagramRefreshDate && <p className="text-gray-600">Обновится {quotas.instagramRefreshDate}</p>}
-                {!quotas.instagramRefreshDate && <p className="text-gray-400 text-xs">День обновления не задан в настройках</p>}
               </>
             ) : (
               <p className="text-gray-500">Нет данных</p>
@@ -85,7 +84,7 @@ function QuotaWidget({ quotas, fetchQuotas, loading }: any) {
                   ({quotas.slideshow.credits_usage} из {quotas.slideshow.credits_limit})
                 </p>
                 {quotas.slideshowRefreshDate && <p className="text-gray-600">Обновится {quotas.slideshowRefreshDate}</p>}
-                {!quotas.slideshowRefreshDate && <p className="text-gray-400 text-xs">День обновления не задан в настройках</p>}
+                {!quotas.slideshowRefreshDate && <p className="text-gray-400 text-xs">Дата регистрации не задана в настройках</p>}
               </>
             ) : (
               <p className="text-gray-500">Нет данных</p>
@@ -117,14 +116,13 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
   const [apiKeys, setApiKeys] = useState({
     OPENAI_API_KEY: '',
     RAPIDAPI_KEY: '',
-    RAPIDAPI_BILLING_DAY: '',
     POSTMYPOST_TOKEN: '',
     POSTMYPOST_PROJECT_ID: '',
     INSTAGRAM_URL: '',
     CLOUDINARY_CLOUD_NAME: '',
     CLOUDINARY_API_KEY: '',
     CLOUDINARY_API_SECRET: '',
-    CLOUDINARY_BILLING_DAY: '',
+    CLOUDINARY_REG_DATE: '',
     OPENAI_MODEL: 'gpt-4o',
     MAIN_PROMPT: 'Ты маркетолог, который адаптирует тексты постов под разные соцсети. Если в посте есть ссылка на сайт курса то вставляй всегда эту...'
   });
@@ -163,14 +161,13 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
       setApiKeys({
         OPENAI_API_KEY: settings.OPENAI_API_KEY || '',
         RAPIDAPI_KEY: settings.RAPIDAPI_KEY || '',
-        RAPIDAPI_BILLING_DAY: settings.RAPIDAPI_BILLING_DAY || '',
         POSTMYPOST_TOKEN: settings.POSTMYPOST_TOKEN || '',
         POSTMYPOST_PROJECT_ID: settings.POSTMYPOST_PROJECT_ID || '',
         INSTAGRAM_URL: settings.INSTAGRAM_URL || '',
         CLOUDINARY_CLOUD_NAME: settings.CLOUDINARY_CLOUD_NAME || '',
         CLOUDINARY_API_KEY: settings.CLOUDINARY_API_KEY || '',
         CLOUDINARY_API_SECRET: settings.CLOUDINARY_API_SECRET || '',
-        CLOUDINARY_BILLING_DAY: settings.CLOUDINARY_BILLING_DAY || '',
+        CLOUDINARY_REG_DATE: settings.CLOUDINARY_REG_DATE || '',
         OPENAI_MODEL: settings.OPENAI_MODEL || 'gpt-5.2',
         MAIN_PROMPT: settings.MAIN_PROMPT || 'Ты маркетолог, который адаптирует тексты постов под разные соцсети. Если в посте есть ссылка на сайт курса то вставляй всегда эту...'
       });
@@ -474,15 +471,14 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
               {[
                 { id: 'OPENAI_MODEL', label: 'OpenAI Model', type: 'select' },
                 { id: 'OPENAI_API_KEY', label: 'OpenAI API Key', placeholder: 'sk-proj-...' },
-                { id: 'RAPIDAPI_KEY', label: 'RapidAPI Key (Instagram Data)', placeholder: '...' },
-                { id: 'RAPIDAPI_BILLING_DAY', label: 'RapidAPI Billing Day (1-31) [Optional]', placeholder: '1' },
+                  { id: 'RAPIDAPI_KEY', label: 'RapidAPI Key (Instagram Data)', placeholder: '...' },
                 { id: 'POSTMYPOST_TOKEN', label: 'PostMyPost Token (Bearer Auth)', placeholder: '...' },
                 { id: 'POSTMYPOST_PROJECT_ID', label: 'PostMyPost Project ID', placeholder: '331831' },
                 { id: 'INSTAGRAM_URL', label: 'Source Instagram Account URL', placeholder: 'https://instagram.com/username' },
                 { id: 'CLOUDINARY_CLOUD_NAME', label: 'Cloudinary Cloud Name', placeholder: 'your_cloud_name' },
                 { id: 'CLOUDINARY_API_KEY', label: 'Cloudinary API Key', placeholder: '...' },
                 { id: 'CLOUDINARY_API_SECRET', label: 'Cloudinary API Secret', placeholder: '...' },
-                { id: 'CLOUDINARY_BILLING_DAY', label: 'Cloudinary Billing Day (1-31) [Optional]', placeholder: '21' },
+                  { id: 'CLOUDINARY_REG_DATE', label: 'Cloudinary дата регистрации (ГГГГ-ММ-ДД)', placeholder: '2025-12-22' },
               ].map((field) => (
                 <div key={field.id} className="grid gap-2">
                   <label className="text-sm font-medium">{field.label}</label>

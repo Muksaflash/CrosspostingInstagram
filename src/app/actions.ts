@@ -209,16 +209,29 @@ export async function publishPost(mediaUrls: string[], caption: string, accounts
   return await createPublication(params, token);
 }
 
-function calculateNextRefreshDate(billingDay: number): string {
-  if (!billingDay || billingDay < 1 || billingDay > 31) return "";
+function formatResetDateFromSeconds(resetSeconds: number): string {
+  if (!resetSeconds || resetSeconds <= 0) return "";
+  const resetDate = new Date(Date.now() + resetSeconds * 1000);
+  const day = String(resetDate.getDate()).padStart(2, '0');
+  const month = String(resetDate.getMonth() + 1).padStart(2, '0');
+  return `${day}.${month}`;
+}
+
+function calculateCloudinaryRefreshDate(regDateStr: string): string {
+  if (!regDateStr) return "";
+  const regDate = new Date(regDateStr);
+  if (isNaN(regDate.getTime())) return "";
+
   const now = new Date();
+  const diffMs = now.getTime() - regDate.getTime();
+  const periodMs = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-  let refreshDate = new Date(now.getFullYear(), now.getMonth(), billingDay);
-  if (now > refreshDate) {
-    refreshDate = new Date(now.getFullYear(), now.getMonth() + 1, billingDay);
-  }
+  const periodsPassed = Math.floor(diffMs / periodMs);
+  const nextReset = new Date(regDate.getTime() + (periodsPassed + 1) * periodMs);
 
-  return refreshDate.toLocaleDateString("ru-RU", { day: '2-digit', month: '2-digit' });
+  const day = String(nextReset.getDate()).padStart(2, '0');
+  const month = String(nextReset.getMonth() + 1).padStart(2, '0');
+  return `${day}.${month}`;
 }
 
 export async function getQuotas() {
@@ -237,9 +250,11 @@ export async function getQuotas() {
   try {
     if (settings?.RAPIDAPI_KEY) {
       const { getInstagramQuota } = await import("@/lib/instagram");
-      metrics.instagram = await getInstagramQuota(settings.RAPIDAPI_KEY);
-      if (settings?.RAPIDAPI_BILLING_DAY) {
-        metrics.instagramRefreshDate = calculateNextRefreshDate(Number(settings.RAPIDAPI_BILLING_DAY));
+      const quota = await getInstagramQuota(settings.RAPIDAPI_KEY);
+      metrics.instagram = quota;
+      // Автоматически рассчитываем дату обновления из заголовка reset
+      if (quota.resetSeconds > 0) {
+        metrics.instagramRefreshDate = formatResetDateFromSeconds(quota.resetSeconds);
       }
     }
   } catch (e) {
@@ -254,8 +269,9 @@ export async function getQuotas() {
         apiKey: settings.CLOUDINARY_API_KEY,
         apiSecret: settings.CLOUDINARY_API_SECRET
       });
-      if (settings?.CLOUDINARY_BILLING_DAY) {
-        metrics.slideshowRefreshDate = calculateNextRefreshDate(Number(settings.CLOUDINARY_BILLING_DAY));
+      // 30-дневный цикл от даты регистрации
+      if (settings?.CLOUDINARY_REG_DATE) {
+        metrics.slideshowRefreshDate = calculateCloudinaryRefreshDate(settings.CLOUDINARY_REG_DATE);
       }
     }
   } catch (e) {
