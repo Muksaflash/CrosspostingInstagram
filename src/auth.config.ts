@@ -2,7 +2,7 @@
 import Google from "next-auth/providers/google";
 import type { NextAuthConfig } from "next-auth";
 
-export default {
+export const authConfig: NextAuthConfig = {
   providers: [Google],
   session: { strategy: "jwt" },
   callbacks: {
@@ -19,4 +19,4 @@ export default {
       return session;
     }
   }
-} satisfies NextAuthConfig;
+};

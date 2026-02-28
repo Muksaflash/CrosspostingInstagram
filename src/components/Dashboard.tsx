@@ -1,20 +1,35 @@
-
 "use client";
 
-import { useState } from "react";
-import { Instagram, Wand2, Send, RefreshCw, Settings, Search } from "lucide-react";
-import { saveSocialNetwork } from "@/app/actions";
+import { useState, useEffect } from "react";
+import { Instagram, Wand2, Send, RefreshCw, Settings, Search, Key, Save, LogOut, Plus, X, Trash2 } from "lucide-react";
+import { saveSocialNetwork, saveUserSetting, getUserSettings, getQuotas } from "@/app/actions";
 import Image from "next/image";
+import { signOut } from "next-auth/react";
+
+export interface PublishingSettings {
+  slideshowMode?: 'auto' | 'always' | 'never';
+  contentFilter?: 'none' | 'only_reels' | 'exclude_reels';
+  publicationType?: number;
+  tiktokPrivacyStatus?: number;
+  tiktokComment?: boolean;
+  tiktokDuet?: boolean;
+  tiktokStitch?: boolean;
+  pinterestLink?: string;
+}
 
 interface SocialNetwork {
+  _docId?: string; // Stable ID from Firestore
   name: string;
   enabled: boolean;
   model: string;
   prompt: string;
+  accountId?: string; // Newly added for PostMyPost integration
+  platform?: string; // E.g., 'telegram', 'vkontakte'
   adaptedText?: string;
   adaptedTitle?: string;
-  status?: 'idle' | 'loading' | 'success' | 'error';
+  status?: 'idle' | 'loading' | 'rewriting' | 'publishing' | 'success' | 'error';
   errorMsg?: string;
+  publishingSettings?: PublishingSettings;
 }
 
 interface InstagramPost {
@@ -25,170 +40,984 @@ interface InstagramPost {
   mediaUrls: string[];
 }
 
-export default function Dashboard({ initialNetworks }: { initialNetworks: any[] }) {
+function QuotaWidget({ quotas, fetchQuotas, loading }: any) {
+  if (!quotas || (!quotas.instagram && !quotas.slideshow)) return null;
+
+  return (
+    <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold flex items-center gap-2">Лимиты и Квоты</h2>
+        <button onClick={fetchQuotas} disabled={loading} className="text-blue-600 hover:text-blue-700 disabled:opacity-50">
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        {/* Instagram */}
+        <div className="border rounded-lg overflow-hidden">
+          <div className="bg-[#2D5A40] text-white px-4 py-2 font-medium text-sm">
+            Запросов к Instagram за месячный период
+          </div>
+          <div className="p-4 space-y-1 text-sm bg-white min-h-[100px]">
+            {quotas.instagram ? (
+              <>
+                <p className="text-gray-900">{quotas.instagram.limit - quotas.instagram.remaining} из {quotas.instagram.limit}</p>
+                {quotas.instagramRefreshDate && <p className="text-gray-600">Обновится {quotas.instagramRefreshDate}</p>}
+                {!quotas.instagramRefreshDate && <p className="text-gray-400 text-xs">День обновления не задан в настройках</p>}
+              </>
+            ) : (
+              <p className="text-gray-500">Нет данных</p>
+            )}
+          </div>
+        </div>
+
+        {/* Slideshow */}
+        <div className="border rounded-lg overflow-hidden">
+          <div className="bg-[#2D5A40] text-white px-4 py-2 font-medium text-sm">
+            Кредиты на слайдшоу за месячный период
+          </div>
+          <div className="p-4 space-y-1 text-sm bg-white min-h-[100px]">
+            {quotas.slideshow ? (
+              <>
+                <p className="text-gray-900">План: {quotas.slideshow.plan}</p>
+                <p className="text-gray-900">
+                  Кредитов израсходовано: {quotas.slideshow.credits_limit > 0 ? Math.round((quotas.slideshow.credits_usage / quotas.slideshow.credits_limit) * 100) : 0}%
+                  ({quotas.slideshow.credits_usage} из {quotas.slideshow.credits_limit})
+                </p>
+                {quotas.slideshowRefreshDate && <p className="text-gray-600">Обновится {quotas.slideshowRefreshDate}</p>}
+                {!quotas.slideshowRefreshDate && <p className="text-gray-400 text-xs">День обновления не задан в настройках</p>}
+              </>
+            ) : (
+              <p className="text-gray-500">Нет данных</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function Dashboard({ initialNetworks, initialPost }: { initialNetworks: any[]; initialPost?: any }) {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'settings'>('dashboard');
+
   const [networks, setNetworks] = useState<SocialNetwork[]>(initialNetworks.length ? initialNetworks : [
-    { name: 'Telegram', enabled: true, model: 'gpt-4o', prompt: 'Перепиши текст для Telegram канала...' },
-    { name: 'VK', enabled: true, model: 'gpt-4o', prompt: 'Адаптируй для ВКонтакте...' },
-    { name: 'Instagram', enabled: false, model: 'gpt-4o', prompt: '...' }, // Usually disable adapt for source
+    { name: 'Telegram', enabled: true, model: 'gpt-5.2', prompt: 'Перепиши текст для Telegram канала...' },
+    { name: 'VK', enabled: true, model: 'gpt-5.2', prompt: 'Адаптируй для ВКонтакте...' },
+    { name: 'Instagram', enabled: false, model: 'gpt-5.2', prompt: '...' }, // Usually disable adapt for source
   ]);
   
-  const [post, setPost] = useState<InstagramPost | null>(null);
+  const [post, setPost] = useState<InstagramPost | null>(initialPost || null);
   const [loading, setLoading] = useState(false);
   const [fetchLink, setFetchLink] = useState("");
+  const [scheduleDate, setScheduleDate] = useState<string>("");
+
+  const [quotas, setQuotas] = useState<any>(null);
+  const [quotaLoading, setQuotaLoading] = useState(false);
+
+  const [apiKeys, setApiKeys] = useState({
+    OPENAI_API_KEY: '',
+    RAPIDAPI_KEY: '',
+    RAPIDAPI_BILLING_DAY: '',
+    POSTMYPOST_TOKEN: '',
+    POSTMYPOST_PROJECT_ID: '',
+    INSTAGRAM_URL: '',
+    CLOUDINARY_CLOUD_NAME: '',
+    CLOUDINARY_API_KEY: '',
+    CLOUDINARY_API_SECRET: '',
+    CLOUDINARY_BILLING_DAY: '',
+    OPENAI_MODEL: 'gpt-4o',
+    MAIN_PROMPT: 'Ты маркетолог, который адаптирует тексты постов под разные соцсети. Если в посте есть ссылка на сайт курса то вставляй всегда эту...'
+  });
+  const [keysLoading, setKeysLoading] = useState(false);
+
+  // Modal specific state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [availableAccounts, setAvailableAccounts] = useState<any[]>([]);
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
+  const [expandedSettingsIdx, setExpandedSettingsIdx] = useState<number | null>(null);
+  const [advancedSettingsIdx, setAdvancedSettingsIdx] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (activeTab === 'settings') {
+      loadSettings();
+    } else if (activeTab === 'dashboard') {
+      loadQuotas();
+    }
+  }, [activeTab]);
+
+  const loadQuotas = async () => {
+    setQuotaLoading(true);
+    try {
+      const q = await getQuotas();
+      setQuotas(q);
+    } catch (e) {
+      console.error(e);
+    }
+    setQuotaLoading(false);
+  };
+
+  const loadSettings = async () => {
+    setKeysLoading(true);
+    const settings = await getUserSettings();
+    if (settings) {
+      setApiKeys({
+        OPENAI_API_KEY: settings.OPENAI_API_KEY || '',
+        RAPIDAPI_KEY: settings.RAPIDAPI_KEY || '',
+        RAPIDAPI_BILLING_DAY: settings.RAPIDAPI_BILLING_DAY || '',
+        POSTMYPOST_TOKEN: settings.POSTMYPOST_TOKEN || '',
+        POSTMYPOST_PROJECT_ID: settings.POSTMYPOST_PROJECT_ID || '',
+        INSTAGRAM_URL: settings.INSTAGRAM_URL || '',
+        CLOUDINARY_CLOUD_NAME: settings.CLOUDINARY_CLOUD_NAME || '',
+        CLOUDINARY_API_KEY: settings.CLOUDINARY_API_KEY || '',
+        CLOUDINARY_API_SECRET: settings.CLOUDINARY_API_SECRET || '',
+        CLOUDINARY_BILLING_DAY: settings.CLOUDINARY_BILLING_DAY || '',
+        OPENAI_MODEL: settings.OPENAI_MODEL || 'gpt-5.2',
+        MAIN_PROMPT: settings.MAIN_PROMPT || 'Ты маркетолог, который адаптирует тексты постов под разные соцсети. Если в посте есть ссылка на сайт курса то вставляй всегда эту...'
+      });
+    }
+    setKeysLoading(false);
+  };
+
+  const handleSaveKey = async (key: string, value: string) => {
+    await saveUserSetting(key, value);
+  };
 
   // Handler stubs - these would call Server Actions or API routes
   const handleFetchLatest = async () => {
     setLoading(true);
-    // TODO: Call API
+    try {
+      const { fetchLatestPost } = await import("@/app/actions");
+      const data = await fetchLatestPost();
+      if (data) setPost(data);
+    } catch (e: any) {
+      alert("Error fetching post: " + e.message);
+    }
     setLoading(false);
   };
 
   const handleFetchByLink = async () => {
     if (!fetchLink) return;
     setLoading(true);
-    // TODO: Call API
+    try {
+      const { fetchLatestPost } = await import("@/app/actions");
+      const data = await fetchLatestPost(fetchLink);
+      if (data) setPost(data);
+    } catch (e: any) {
+      alert("Error fetching post by link: " + e.message);
+    }
     setLoading(false);
   };
   
   const handleAdaptAll = async () => {
-     // TODO: Iterate active networks and call AI
+    if (!post?.caption) {
+      alert("Нет исходного текста поста для переписывания.");
+      return;
+    }
+
+    const newNetworks = [...networks];
+    let isChanged = false;
+
+    // Set all enabled networks to rewriting status
+    for (let i = 0; i < newNetworks.length; i++) {
+      const net = newNetworks[i];
+      if (net.enabled && net.prompt) {
+        newNetworks[i].status = 'rewriting';
+        isChanged = true;
+      }
+    }
+
+    if (isChanged) setNetworks([...newNetworks]);
+
+    const { adaptPostText } = await import("@/app/actions");
+
+    const promises = newNetworks.map(async (net, i) => {
+      if (net.enabled && net.prompt) {
+        try {
+          const adapted = await adaptPostText(post.caption, net.prompt, apiKeys.MAIN_PROMPT, apiKeys.OPENAI_MODEL || 'gpt-5.2');
+          newNetworks[i].adaptedTitle = adapted.title;
+          newNetworks[i].adaptedText = adapted.text;
+          newNetworks[i].status = 'success';
+          await saveSocialNetwork(net._docId || net.accountId || net.name, newNetworks[i]);
+        } catch (error: any) {
+          console.error("Rewrite Error:", error);
+          newNetworks[i].status = 'error';
+          alert(`Ошибка для ${net.name}: ${error.message}`);
+        }
+      }
+    });
+
+    await Promise.all(promises);
+    setNetworks([...newNetworks]);
   };
   
   const handlePublishAll = async () => {
-     // TODO: Call PostMyPost
+    if (!post?.mediaUrls || !post.mediaUrls.length) {
+      alert("Нет медиа файлов для публикации");
+      return;
+    }
+
+    const enabledNetworks = networks.filter((n) => n.enabled && (n.adaptedText || post.caption));
+    if (enabledNetworks.length === 0) {
+      alert("Нет готовых сетей для публикации (нужно включить сеть и иметь текст).");
+      return;
+    }
+
+    const newNetworks = [...networks];
+    enabledNetworks.forEach(net => {
+      const idx = newNetworks.findIndex(n => n === net);
+      if (idx !== -1) newNetworks[idx].status = 'publishing';
+    });
+    setNetworks([...newNetworks]);
+
+    try {
+      const res = await fetch("/api/postmypost/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          networks: enabledNetworks,
+          mediaUrls: post.mediaUrls,
+          originalCaption: post.caption,
+          postAt: scheduleDate ? new Date(scheduleDate).toISOString() : undefined
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+
+      enabledNetworks.forEach(net => {
+        const idx = newNetworks.findIndex(n => n === net);
+        if (idx !== -1) newNetworks[idx].status = 'success';
+      });
+      alert('Успешно опубликовано!');
+    } catch (err: any) {
+      console.error(err);
+      enabledNetworks.forEach(net => {
+        const idx = newNetworks.findIndex(n => n === net);
+        if (idx !== -1) {
+          newNetworks[idx].status = 'error';
+          newNetworks[idx].errorMsg = err.message;
+        }
+      });
+      alert('Ошибка публикации: ' + err.message);
+    }
+    setNetworks([...newNetworks]);
+  };
+
+  const handleOpenAddNetworkModal = async () => {
+    setIsModalOpen(true);
+    setLoadingAccounts(true);
+    try {
+      const res = await fetch("/api/postmypost/accounts");
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+
+      // Handle cases where the API returns an object (e.g., {"data": [...]}) instead of a direct array
+      const accountsArray = Array.isArray(data) ? data : (data?.data || data?.items || data?.accounts || []);
+      setAvailableAccounts(accountsArray);
+    } catch (e: any) {
+      alert("Error fetching PostMyPost accounts: " + e.message);
+      setAvailableAccounts([]);
+    }
+    setLoadingAccounts(false);
+  };
+
+  const handleAddNetwork = (account: any) => {
+    const newNetwork: SocialNetwork = {
+      name: account.name || account.platform,
+      enabled: true,
+      model: apiKeys.OPENAI_MODEL || 'gpt-5.2',
+      prompt: `Адаптируй этот пост для публикации в ${account.platform}...`,
+      accountId: account.id,
+      platform: account.platform,
+      status: 'idle',
+      publishingSettings: {
+        slideshowMode: 'auto',
+        contentFilter: 'none',
+        publicationType: 1,
+        tiktokPrivacyStatus: 1,
+        tiktokComment: true,
+        tiktokDuet: true,
+        tiktokStitch: true
+      },
+    };
+    const newNetworks = [...networks, newNetwork];
+    setNetworks(newNetworks);
+    saveSocialNetwork(newNetwork.accountId || newNetwork.name, newNetwork);
+    setIsModalOpen(false);
   };
 
   const toggleNetwork = (index: number) => {
     const newNetworks = [...networks];
     newNetworks[index].enabled = !newNetworks[index].enabled;
     setNetworks(newNetworks);
-    saveSocialNetwork(newNetworks[index].name, newNetworks[index]);
+    const net = newNetworks[index];
+    saveSocialNetwork(net._docId || net.accountId || net.name, net);
+  };
+
+  const handleRewriteSingle = async (index: number) => {
+    if (!post?.caption) {
+      alert("Нет исходного текста поста для переписывания. Сначала загрузите пост.");
+      return;
+    }
+
+    const newNetworks = [...networks];
+    const net = newNetworks[index];
+    if (!net.prompt) {
+      alert("У этой соцсети нет инструкции(Prompt) для нейросети.");
+      return;
+    }
+
+    newNetworks[index].status = 'rewriting';
+    setNetworks([...newNetworks]);
+
+    try {
+      const { adaptPostText } = await import("@/app/actions");
+      const adapted = await adaptPostText(post.caption, net.prompt, apiKeys.MAIN_PROMPT, apiKeys.OPENAI_MODEL || 'gpt-5.2');
+      newNetworks[index].adaptedTitle = adapted.title;
+      newNetworks[index].adaptedText = adapted.text;
+      newNetworks[index].status = 'success';
+      saveSocialNetwork(net._docId || net.accountId || net.name, newNetworks[index]);
+    } catch (error: any) {
+      console.error("Single Rewrite Error:", error);
+      newNetworks[index].status = 'error';
+      alert(`Ошибка для ${net.name}: ${error.message}`);
+    }
+    setNetworks([...newNetworks]);
+  };
+
+  const handlePublishSingle = async (index: number) => {
+    if (!post?.mediaUrls || !post.mediaUrls.length) {
+      alert("Нет медиа файлов для публикации");
+      return;
+    }
+    const newNetworks = [...networks];
+    newNetworks[index].status = 'publishing';
+    setNetworks(newNetworks);
+
+    try {
+      const res = await fetch("/api/postmypost/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          networks: [networks[index]],
+          mediaUrls: post.mediaUrls,
+          originalCaption: post.caption,
+          postAt: scheduleDate ? new Date(scheduleDate).toISOString() : undefined
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+
+      newNetworks[index].status = 'success';
+      alert(`Успешно опубликовано в ${networks[index].name}!`);
+    } catch (err: any) {
+      console.error(err);
+      newNetworks[index].status = 'error';
+      newNetworks[index].errorMsg = err.message;
+      alert(`Ошибка публикации в ${networks[index].name}: ` + err.message);
+    }
+    setNetworks([...newNetworks]);
+  };
+
+  const handleDeleteNetwork = async (index: number) => {
+    const net = networks[index];
+    if (!net._docId && !net.accountId && !net.name) return;
+
+    // Remove from UI
+    const newNetworks = networks.filter((_, i) => i !== index);
+    setNetworks(newNetworks);
+
+    // Remove from backend
+    const { deleteSocialNetwork } = await import('@/app/actions');
+    await deleteSocialNetwork(net._docId || net.accountId || net.name);
   };
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      {/* Left Column: Source Post */}
-      <div className="space-y-6 lg:col-span-1">
-        <div className="rounded-xl bg-white p-6 shadow-sm">
-          <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold">
-            <Instagram className="h-5 w-5 text-pink-600" />
-            Source Post
-          </h2>
-          
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <button 
-                onClick={handleFetchLatest}
-                disabled={loading}
-                className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {loading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin inline" /> : "Fetch Latest"}
-              </button>
-            </div>
-            
-            <div className="flex gap-2">
-              <input 
-                value={fetchLink}
-                onChange={(e) => setFetchLink(e.target.value)}
-                placeholder="https://instagram.com/p/..."
-                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              />
-               <button 
-                onClick={handleFetchByLink}
-                disabled={loading || !fetchLink}
-                className="rounded-lg bg-gray-100 p-2 hover:bg-gray-200"
-              >
-                <Search className="h-4 w-4" />
-              </button>
-            </div>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center border-b pb-4">
+        <div className="flex gap-4">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`font-semibold ${activeTab === 'dashboard' ? 'text-black border-b-2 border-black pb-4 -mb-4' : 'text-gray-500'}`}
+          >
+            Dashboard
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`font-semibold flex items-center gap-2 ${activeTab === 'settings' ? 'text-black border-b-2 border-black pb-4 -mb-4' : 'text-gray-500'}`}
+          >
+            <Key className="w-4 h-4" /> Settings
+          </button>
+        </div>
+        <button
+          onClick={() => signOut({ callbackUrl: '/' })}
+          className="text-gray-500 hover:text-red-600 flex items-center gap-2 text-sm font-medium transition-colors"
+        >
+          <LogOut className="w-4 h-4" /> Выйти
+        </button>
+      </div>
 
-            {post ? (
-              <div className="space-y-3 pt-4 border-t">
-                 {post.imageUrl && (
-                   <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-gray-100">
-                     <img src={post.imageUrl} alt="Post preview" className="h-full w-full object-cover" />
-                     <div className="absolute top-2 right-2 rounded bg-black/50 px-2 py-1 text-xs text-white">
-                       {post.type}
-                     </div>
-                   </div>
-                 )}
-                 <p className="text-sm text-gray-600 line-clamp-6">{post.caption}</p>
-                 
-                  <button 
-                    onClick={handleAdaptAll}
-                    className="w-full rounded-lg bg-purple-600 px-4 py-2 text-white hover:bg-purple-700 flex items-center justify-center gap-2"
-                  >
-                    <Wand2 className="h-4 w-4" />
-                    Adapt for Networks
-                  </button>
+      {activeTab === 'settings' ? (
+        <div className="max-w-2xl bg-white p-6 rounded-xl shadow-sm space-y-6">
+          <div>
+            <h2 className="text-xl font-bold">API Integrations</h2>
+            <p className="text-gray-500 text-sm">Configure your personal API keys for the automation to work.</p>
+          </div>
+
+          {keysLoading ? (
+            <p className="text-gray-500">Loading settings...</p>
+          ) : (
+            <div className="space-y-4">
+              {[
+                { id: 'OPENAI_MODEL', label: 'OpenAI Model', type: 'select' },
+                { id: 'OPENAI_API_KEY', label: 'OpenAI API Key', placeholder: 'sk-proj-...' },
+                { id: 'RAPIDAPI_KEY', label: 'RapidAPI Key (Instagram Data)', placeholder: '...' },
+                { id: 'RAPIDAPI_BILLING_DAY', label: 'RapidAPI Billing Day (1-31) [Optional]', placeholder: '1' },
+                { id: 'POSTMYPOST_TOKEN', label: 'PostMyPost Token (Bearer Auth)', placeholder: '...' },
+                { id: 'POSTMYPOST_PROJECT_ID', label: 'PostMyPost Project ID', placeholder: '331831' },
+                { id: 'INSTAGRAM_URL', label: 'Source Instagram Account URL', placeholder: 'https://instagram.com/username' },
+                { id: 'CLOUDINARY_CLOUD_NAME', label: 'Cloudinary Cloud Name', placeholder: 'your_cloud_name' },
+                { id: 'CLOUDINARY_API_KEY', label: 'Cloudinary API Key', placeholder: '...' },
+                { id: 'CLOUDINARY_API_SECRET', label: 'Cloudinary API Secret', placeholder: '...' },
+                { id: 'CLOUDINARY_BILLING_DAY', label: 'Cloudinary Billing Day (1-31) [Optional]', placeholder: '21' },
+              ].map((field) => (
+                <div key={field.id} className="grid gap-2">
+                  <label className="text-sm font-medium">{field.label}</label>
+                  <div className="flex gap-2">
+                    {field.type === 'select' ? (
+                      <select
+                        value={apiKeys[field.id as keyof typeof apiKeys]}
+                        onChange={(e) => {
+                          setApiKeys({ ...apiKeys, [field.id]: e.target.value });
+                          handleSaveKey(field.id, e.target.value);
+                        }}
+                        className="flex-1 border p-2 rounded-md bg-white"
+                      >
+                        <option value="gpt-5.2">gpt-5.2 (Рекомендуется)</option>
+                        <option value="gpt-5.2-thinking">gpt-5.2 thinking (Глубокий анализ)</option>
+                        <option value="gpt-5">gpt-5 (Быстрый)</option>
+                        <option value="gpt-5-mini">gpt-5 mini (Дешевый)</option>
+                        <option value="gpt-5-nano">gpt-5 nano (Самый дешевый)</option>
+                      </select>
+                    ) : (
+                      <input
+                        type={field.id.includes('KEY') || field.id.includes('TOKEN') ? 'password' : 'text'}
+                        value={apiKeys[field.id as keyof typeof apiKeys]}
+                        onChange={(e) => setApiKeys({ ...apiKeys, [field.id]: e.target.value })}
+                        placeholder={field.placeholder}
+                        className="flex-1 border p-2 rounded-md"
+                      />
+                    )}
+                    <button
+                      onClick={() => handleSaveKey(field.id, apiKeys[field.id as keyof typeof apiKeys])}
+                      className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 flex items-center gap-2"
+                    >
+                      <Save className="w-4 h-4" /> Save
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              <div className="grid gap-2 mt-4 pt-4 border-t">
+                <label className="text-sm font-medium">Основной Промпт (Main Prompt)</label>
+                <div className="flex gap-2 flex-col">
+                  <textarea
+                    value={apiKeys.MAIN_PROMPT}
+                    onChange={(e) => setApiKeys({ ...apiKeys, MAIN_PROMPT: e.target.value })}
+                    placeholder="Инструкция маркетолога..."
+                    className="flex-1 border p-3 rounded-md min-h-[100px] text-sm"
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => handleSaveKey('MAIN_PROMPT', apiKeys.MAIN_PROMPT)}
+                      className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 flex items-center gap-2"
+                    >
+                      <Save className="w-4 h-4" /> Save Prompt
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">Эта инструкция будет отправляться нейросети ПЕРЕД инструкцией конкретной платформы.</p>
+              </div>
+
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <QuotaWidget quotas={quotas} fetchQuotas={loadQuotas} loading={quotaLoading} />
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              {/* Left Column: Source Post */}
+              <div className="space-y-6 lg:col-span-1">
+                <div className="rounded-xl bg-white p-6 shadow-sm">
+                  <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold">
+                    <Instagram className="h-5 w-5 text-pink-600" />
+                    Source Post
+                  </h2>
+
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleFetchLatest}
+                        disabled={loading}
+                        className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {loading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin inline" /> : "Fetch Latest"}
+                      </button>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input
+                        value={fetchLink}
+                        onChange={(e) => setFetchLink(e.target.value)}
+                        placeholder="https://instagram.com/p/..."
+                        className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                      />
+                      <button
+                        onClick={handleFetchByLink}
+                        disabled={loading || !fetchLink}
+                        className="rounded-lg bg-gray-100 p-2 hover:bg-gray-200"
+                      >
+                        <Search className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    {/* Schedule Date Input */}
+                    <div className="pt-2 border-t">
+                      <label className="block text-xs font-semibold text-gray-500 mb-1">
+                        Время публикации (оставьте пустым для публикации сейчас)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={scheduleDate}
+                        onChange={(e) => setScheduleDate(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {post ? (
+                      <div className="space-y-3 pt-4 border-t">
+                        {post.imageUrl && (
+                          <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-gray-100">
+                            <img src={`/api/proxy-image?url=${encodeURIComponent(post.imageUrl)}`} alt="Post preview" className="h-full w-full object-cover" />
+                            <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
+                              <span className="rounded bg-black/60 backdrop-blur-sm px-2 py-1 text-xs font-medium text-white shadow-sm">
+                                {post.type}
+                              </span>
+                              {post.mediaUrls && post.mediaUrls.length > 1 && (
+                                <span className="rounded bg-black/60 backdrop-blur-sm px-2 py-1 text-xs font-medium text-white shadow-sm flex items-center gap-1">
+                                  <Instagram className="w-3 h-3" />
+                                  1 of {post.mediaUrls.length}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        <div className="text-sm text-gray-600 max-h-60 overflow-y-auto whitespace-pre-wrap pr-2 rounded-md bg-white border border-transparent hover:border-gray-100 transition-colors">
+                          {post.caption}
+                        </div>
+
+                        <button
+                          onClick={handleAdaptAll}
+                          className="w-full rounded-lg bg-purple-600 px-4 py-2 text-white hover:bg-purple-700 flex items-center justify-center gap-2"
+                        >
+                          <Wand2 className="h-4 w-4" />
+                          Adapt for Networks
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex h-64 items-center justify-center rounded-lg bg-gray-50 border-2 border-dashed">
+                        <p className="text-gray-400 text-sm">No post loaded</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Networks */}
+              <div className="space-y-6 lg:col-span-2">
+                <div className="rounded-xl bg-white p-6 shadow-sm">
+                  <div className="mb-6 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <h2 className="text-xl font-semibold">Social Networks</h2>
+                      <button
+                        onClick={handleOpenAddNetworkModal}
+                        className="flex items-center gap-1 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                      >
+                        <Plus className="h-4 w-4" /> Add Network
+                      </button>
+                    </div>
+                    <button
+                      onClick={handlePublishAll}
+                      disabled={!post}
+                      className="rounded-lg bg-green-600 px-6 py-2 text-white hover:bg-green-700 flex items-center gap-2 disabled:opacity-50"
+                    >
+                      <Send className="h-4 w-4" />
+                      Publish All
+                    </button>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {networks.map((net, idx) => (
+                      <div key={net._docId || net.accountId || idx} className={`relative rounded-xl border p-4 transition-all ${net.enabled ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100 opacity-75'}`}>
+                        <div className="mb-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              className="font-medium bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none transition-colors max-w-[150px] truncate"
+                              value={net.name}
+                              onChange={(e) => {
+                                const newNet = [...networks];
+                                newNet[idx].name = e.target.value;
+                                setNetworks(newNet);
+                              }}
+                              onBlur={() => {
+                                saveSocialNetwork(net._docId || net.accountId || net.name, networks[idx]);
+                              }}
+                              title="Rename network"
+                            />
+                            {net.status === 'loading' && <RefreshCw className="h-3 w-3 animate-spin text-gray-400" />}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" checked={net.enabled} onChange={() => toggleNetwork(idx)} className="sr-only peer" />
+                            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                            </label>
+                            <div className="relative">
+                              <button
+                                onClick={() => setExpandedSettingsIdx(expandedSettingsIdx === idx ? null : idx)}
+                                className="p-1 rounded-md text-gray-500 hover:bg-gray-100 transition-colors"
+                                title="Настройки соцсети"
+                              >
+                                <Settings className="w-4 h-4" />
+                              </button>
+                              {expandedSettingsIdx === idx && (
+                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-100 p-1 z-10">
+                                  <button
+                                    onClick={() => {
+                                      setAdvancedSettingsIdx(idx);
+                                      setExpandedSettingsIdx(null);
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded flex items-center gap-2 transition-colors border-b border-gray-100 mb-1"
+                                  >
+                                    <Settings className="w-4 h-4" />
+                                    Доп. настройки
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (confirm(`Удалить соцсеть ${net.name}?`)) {
+                                        handleDeleteNetwork(idx);
+                                        setExpandedSettingsIdx(null);
+                                      }
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded flex items-center gap-2 transition-colors"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                    Удалить соцсеть
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {net.enabled && (
+                          <div className="space-y-4 pt-4 mt-2 border-t border-gray-100">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <button
+                                onClick={() => handleRewriteSingle(idx)}
+                                disabled={net.status === 'rewriting' || net.status === 'publishing' || (!post && !net.adaptedText)}
+                                className="flex items-center justify-center gap-2 bg-blue-100 text-blue-700 hover:bg-blue-200 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
+                              >
+                                {net.status === 'rewriting' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                                Переписать текст
+                              </button>
+                              <button
+                                onClick={() => handlePublishSingle(idx)}
+                                disabled={net.status === 'rewriting' || net.status === 'publishing' || (!post && !net.adaptedText)}
+                                className="flex items-center justify-center gap-2 bg-green-100 text-green-700 hover:bg-green-200 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
+                              >
+                                {net.status === 'publishing' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                Опубликовать
+                              </button>
+                            </div>
+                            {net.status === 'error' && (
+                              <p className="text-red-500 text-xs mt-1 font-medium bg-red-50 p-2 rounded border border-red-100">{net.errorMsg}</p>
+                            )}
+                            {net.status === 'success' && (
+                              <p className="text-green-600 text-xs mt-1 font-medium bg-green-50 p-2 rounded border border-green-100">Успешно опубликовано!</p>
+                            )}
+
+                            <div className="space-y-1">
+                              <label className="text-xs font-medium text-gray-600">Системный Промпт (Инструкция AI)</label>
+                              <textarea
+                                value={net.prompt || ''}
+                                onChange={(e) => {
+                                  const newNet = [...networks];
+                                  newNet[idx].prompt = e.target.value;
+                                  setNetworks(newNet);
+                                }}
+                                onBlur={() => {
+                                  saveSocialNetwork(net._docId || net.accountId || net.name, networks[idx]);
+                                }}
+                                placeholder="Инструкция для нейросети по переписыванию поста..."
+                                className="w-full rounded-md border border-gray-200 p-2 text-xs focus:border-blue-500 focus:outline-none min-h-[60px]"
+                              />
+                            </div>
+
+                            <div className="space-y-3">
+                              <div>
+                                <label className="text-xs font-medium text-gray-600">Заголовок</label>
+                                <input
+                                  type="text"
+                                  value={net.adaptedTitle || ''}
+                                  onChange={(e) => {
+                                    const newNet = [...networks];
+                                    newNet[idx].adaptedTitle = e.target.value;
+                                    setNetworks(newNet);
+                                  }}
+                                  onBlur={() => {
+                                    saveSocialNetwork(net._docId || net.accountId || net.name, networks[idx]);
+                                  }}
+                                  placeholder="Заголовок для поста..."
+                                  className="w-full mt-1 rounded-md border border-gray-200 p-2 text-sm focus:border-blue-500 focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs font-medium text-gray-600">Адаптированный Текст</label>
+                                <textarea
+                                  value={net.adaptedText || ''}
+                                  onChange={(e) => {
+                                    const newNet = [...networks];
+                                    newNet[idx].adaptedText = e.target.value;
+                                    setNetworks(newNet);
+                                  }}
+                                  onBlur={() => {
+                                    saveSocialNetwork(net._docId || net.accountId || net.name, networks[idx]);
+                                  }}
+                                  placeholder="Здесь появится переписанный текст..."
+                                  className="w-full mt-1 rounded-md border border-gray-200 p-2 text-sm focus:border-blue-500 focus:outline-none min-h-[100px]"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Network Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl relative">
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h2 className="text-xl font-bold mb-4">Connect Social Network</h2>
+            <p className="text-sm text-gray-500 mb-6">Select an account from your PostMyPost project to add to automation.</p>
+
+            {loadingAccounts ? (
+              <div className="flex justify-center p-8">
+                <RefreshCw className="h-6 w-6 animate-spin text-blue-600" />
+              </div>
+            ) : availableAccounts.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-lg border border-dashed">
+                No accounts found. Make sure your PostMyPost Token and Project ID are correct in Settings.
               </div>
             ) : (
-              <div className="flex h-64 items-center justify-center rounded-lg bg-gray-50 border-2 border-dashed">
-                <p className="text-gray-400 text-sm">No post loaded</p>
+              <div className="max-h-96 overflow-y-auto space-y-3">
+                {availableAccounts.map((acc: any) => {
+                  const isAdded = networks.some(n => n.accountId === acc.id);
+                  return (
+                    <div key={acc.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-blue-200 hover:bg-blue-50/50 transition-colors">
+                      <div>
+                        <p className="font-medium text-gray-900">{acc.name || acc.platform}</p>
+                        <p className="text-xs text-gray-500 flex gap-2">
+                          <span>Platform: <span className="capitalize">{acc.platform}</span></span>
+                          <span>({acc.id})</span>
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleAddNetwork(acc)}
+                        disabled={isAdded}
+                        className={`px-4 py-1.5 rounded-md text-sm font-medium ${isAdded ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                      >
+                        {isAdded ? 'Added' : 'Add'}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Right Column: Networks */}
-      <div className="space-y-6 lg:col-span-2">
-         <div className="rounded-xl bg-white p-6 shadow-sm">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Social Networks</h2>
-              <button 
-                onClick={handlePublishAll}
-                disabled={!post}
-                className="rounded-lg bg-green-600 px-6 py-2 text-white hover:bg-green-700 flex items-center gap-2 disabled:opacity-50"
+      {/* Advanced Settings Modal */}
+      {advancedSettingsIdx !== null && networks[advancedSettingsIdx] && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => {
+                const net = networks[advancedSettingsIdx];
+                saveSocialNetwork(net._docId || net.accountId || net.name, net);
+                setAdvancedSettingsIdx(null);
+              }}
+              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h2 className="text-xl font-bold mb-2">Настройки публикации</h2>
+            <p className="text-sm text-gray-500 mb-6 font-medium bg-gray-50 p-2 rounded inline-block">{networks[advancedSettingsIdx].name}</p>
+
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold block text-gray-700">Фильтр контента (Reels vs Картинки)</label>
+                <select
+                  className="w-full border rounded-md p-2 text-sm focus:border-blue-500 outline-none"
+                  value={networks[advancedSettingsIdx].publishingSettings?.contentFilter || 'none'}
+                  onChange={(e) => {
+                    const newNets = [...networks];
+                    const st = newNets[advancedSettingsIdx].publishingSettings || {};
+                    st.contentFilter = e.target.value as any;
+                    newNets[advancedSettingsIdx].publishingSettings = st;
+                    setNetworks(newNets);
+                  }}
+                >
+                  <option value="none">Без фильтра (Публиковать всё)</option>
+                  <option value="only_reels">Только Reels (Одиночные видео)</option>
+                  <option value="exclude_reels">Исключать Reels (Фото / Карусели)</option>
+                </select>
+                <p className="text-xs text-gray-500">Полезно для разделения аккаунтов Pinterest / VK на Reels и Обычные посты.</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold block text-gray-700">Режим Слайдшоу</label>
+                <select
+                  className="w-full border rounded-md p-2 text-sm focus:border-blue-500 outline-none"
+                  value={networks[advancedSettingsIdx].publishingSettings?.slideshowMode || 'auto'}
+                  onChange={(e) => {
+                    const newNets = [...networks];
+                    const st = newNets[advancedSettingsIdx].publishingSettings || {};
+                    st.slideshowMode = e.target.value as any;
+                    newNets[advancedSettingsIdx].publishingSettings = st;
+                    setNetworks(newNets);
+                  }}
+                >
+                  <option value="auto">Авто (Зависит от соцсети)</option>
+                  <option value="always">Всегда объединять фото в видео (Слайдшоу)</option>
+                  <option value="never">Никогда (Оставлять карусель)</option>
+                </select>
+                <p className="text-xs text-gray-500">Авто = Reddit/TikTok/Pinterest_reels конвертируются автоматически, остальные — каруселью.</p>
+              </div>
+
+              <div className="space-y-2 border-t pt-4">
+                <label className="text-sm font-semibold block text-gray-700">Тип публикации (Publication Type)</label>
+                <select
+                  className="w-full border rounded-md p-2 text-sm focus:border-blue-500 outline-none"
+                  value={networks[advancedSettingsIdx].publishingSettings?.publicationType || 1}
+                  onChange={(e) => {
+                    const newNets = [...networks];
+                    const st = newNets[advancedSettingsIdx].publishingSettings || {};
+                    st.publicationType = Number(e.target.value);
+                    newNets[advancedSettingsIdx].publishingSettings = st;
+                    setNetworks(newNets);
+                  }}
+                >
+                  <option value="1">Обычный пост (1)</option>
+                  <option value="4">Shorts / Reels на YouTube/Rutube (4)</option>
+                </select>
+              </div>
+
+              {networks[advancedSettingsIdx].platform?.toLowerCase().includes('tiktok') && (
+                <div className="space-y-3 border-t pt-4 bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-sm font-semibold text-gray-900">Специфичные опции TikTok</h3>
+
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-gray-700">Privacy Status</label>
+                    <select
+                      className="border rounded px-2 py-1 text-sm bg-white"
+                      value={networks[advancedSettingsIdx].publishingSettings?.tiktokPrivacyStatus || 1}
+                      onChange={(e) => {
+                        const newNets = [...networks];
+                        const st = newNets[advancedSettingsIdx].publishingSettings || {};
+                        st.tiktokPrivacyStatus = Number(e.target.value);
+                        newNets[advancedSettingsIdx].publishingSettings = st;
+                        setNetworks(newNets);
+                      }}
+                    >
+                      <option value="1">Public</option>
+                      <option value="2">Friends</option>
+                      <option value="3">Private</option>
+                    </select>
+                  </div>
+
+                  {['comment', 'duet', 'stitch'].map(opt => (
+                    <label key={opt} className="flex items-center justify-between text-sm text-gray-700">
+                      <span className="capitalize">Allow {opt}</span>
+                      <input
+                              type="checkbox"
+                              className="rounded border-gray-300 w-4 h-4 text-blue-600 focus:ring-blue-500"
+                              checked={networks[advancedSettingsIdx].publishingSettings?.[`tiktok${opt.charAt(0).toUpperCase() + opt.slice(1)}` as keyof PublishingSettings] as boolean ?? true}
+                              onChange={(e) => {
+                                const newNets = [...networks];
+                                const st = newNets[advancedSettingsIdx].publishingSettings || {};
+                                (st as any)[`tiktok${opt.charAt(0).toUpperCase() + opt.slice(1)}`] = e.target.checked;
+                                newNets[advancedSettingsIdx].publishingSettings = st;
+                                setNetworks(newNets);
+                              }}
+                            />
+                          </label>
+                        ))}
+                </div>
+              )}
+
+              {networks[advancedSettingsIdx].platform?.toLowerCase().includes('pinterest') && (
+                <div className="space-y-2 border-t pt-4">
+                  <label className="text-sm font-semibold block text-gray-700">Ссылка для ПИНА (Pinterest)</label>
+                  <input
+                    type="url"
+                    placeholder="https://test.com"
+                    className="w-full border rounded-md p-2 text-sm focus:border-blue-500 outline-none"
+                    value={networks[advancedSettingsIdx].publishingSettings?.pinterestLink || ''}
+                    onChange={(e) => {
+                      const newNets = [...networks];
+                      const st = newNets[advancedSettingsIdx].publishingSettings || {};
+                      st.pinterestLink = e.target.value;
+                      newNets[advancedSettingsIdx].publishingSettings = st;
+                      setNetworks(newNets);
+                    }}
+                  />
+                  <p className="text-xs text-gray-500">Добавляется как link к публикации Pinterest.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 pt-4 border-t flex justify-end">
+              <button
+                onClick={() => {
+                  const net = networks[advancedSettingsIdx];
+                  saveSocialNetwork(net._docId || net.accountId || net.name, net);
+                  setAdvancedSettingsIdx(null);
+                }}
+                className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
               >
-                <Send className="h-4 w-4" />
-                Publish All
+                Сохранить и закрыть
               </button>
             </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              {networks.map((net, idx) => (
-                <div key={net.name} className={`relative rounded-xl border p-4 transition-all ${net.enabled ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100 opacity-75'}`}>
-                   <div className="mb-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{net.name}</span>
-                        {net.status === 'loading' && <RefreshCw className="h-3 w-3 animate-spin text-gray-400" />}
-                      </div>
-                      <div className="flex items-center gap-2">
-                         <button className="text-gray-400 hover:text-gray-600"><Settings className="h-4 w-4" /></button>
-                         <label className="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" checked={net.enabled} onChange={() => toggleNetwork(idx)} className="sr-only peer" />
-                            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                         </label>
-                      </div>
-                   </div>
-                   
-                   {net.enabled && (
-                     <div className="space-y-2">
-                        <textarea 
-                          value={net.adaptedText || ''}
-                          onChange={(e) => {
-                             const newNet = [...networks];
-                             newNet[idx].adaptedText = e.target.value;
-                             setNetworks(newNet);
-                          }}
-                          placeholder={net.enabled ? "Waiting for adaptation..." : "Disabled"}
-                          className="w-full rounded-md border border-gray-200 p-2 text-sm focus:border-blue-500 focus:outline-none min-h-[100px]"
-                        />
-                         {net.adaptedTitle && (
-                           <input 
-                              value={net.adaptedTitle}
-                              readOnly
-                              className="w-full text-xs text-gray-500 bg-gray-50 p-1 rounded"
-                           />
-                         )}
-                     </div>
-                   )}
-                </div>
-              ))}
-            </div>
-         </div>
-      </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

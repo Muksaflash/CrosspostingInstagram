@@ -1,35 +1,55 @@
 
 const API_URL = 'https://api.openai.com/v1/chat/completions';
 
-export function getOpenAiKey() {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) throw new Error("OPENAI_API_KEY is not set");
-  return key;
-}
+
 
 export interface AdaptedContent {
   title: string;
   text: string;
 }
 
-export async function adaptText(baseText: string, prompt: string, model: string): Promise<AdaptedContent> {
-  const apiKey = getOpenAiKey();
-  
+export async function adaptText(baseText: string, prompt: string, mainPrompt: string, model: string, apiKey: string): Promise<AdaptedContent> {
   const systemPrompt = `Всегда отвечай СТРОГО одним JSON-объектом вида {"title": "...", "text": "..."}, без каких-либо комментариев, префиксов, суффиксов и форматирования.`;
   
-  const userContent = `Задача: ${prompt}\n\nИсходный текст поста:\n"""${baseText}"""`;
+  const combinedPrompt = mainPrompt ? `${mainPrompt}\n\n${prompt}` : prompt;
+  const userContent = `Задача:\n${combinedPrompt}\n\nИсходный текст поста:\n"""${baseText}"""`;
+
+  console.log("--- OUTGOING OPENAI PROMPT ---");
+  console.log(userContent);
+  console.log("------------------------------");
 
   const messages = [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userContent }
   ];
 
-  const payload = {
-    model: model || 'gpt-4o', // Default to 4o if not specified
+  // Handle "thinking" model variant
+  const isThinking = (model || '').includes('-thinking');
+  const actualModel = isThinking ? model.replace('-thinking', '') : model;
+
+  const payload: Record<string, any> = {
+    model: actualModel || 'gpt-5.2', // Default to GPT-5.2
     messages: messages,
     temperature: 1, 
-    response_format: { type: "json_object" } // Force JSON mode if model supports it
+    response_format: { type: "json_object" } // Force JSON mode
   };
+
+  // For "thinking" mode, add reasoning_effort for deeper analysis
+  if (isThinking) {
+    payload.reasoning_effort = 'high';
+  }
+
+  console.log(`[OpenAI Request] Adapt Text using model: ${payload.model}`, isThinking ? '(with reasoning_effort: high)' : '');
+
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const logPath = path.join(process.cwd(), 'api-logs.txt');
+    const logEntry = `\n[${new Date().toISOString()}] Model: ${payload.model} ${isThinking ? '(thinking)' : ''}\nPayload: ${JSON.stringify(payload, null, 2)}\n`;
+    fs.appendFileSync(logPath, logEntry);
+  } catch (e) {
+    console.error("Failed to write log file:", e);
+  }
 
   const res = await fetch(API_URL, {
     method: 'POST',

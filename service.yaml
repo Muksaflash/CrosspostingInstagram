@@ -1,0 +1,75 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  annotations:
+    run.googleapis.com/client-name: gcloud
+    run.googleapis.com/client-version: 558.0.0
+    run.googleapis.com/ingress: all
+    run.googleapis.com/ingress-status: all
+    run.googleapis.com/maxScale: '3'
+    run.googleapis.com/operation-id: a5ccb673-ed92-4fd3-9175-37477aee1ae2
+    run.googleapis.com/urls: '["https://instagram-automation-412412438508.us-central1.run.app","https://instagram-automation-76kati656a-uc.a.run.app"]'
+    serving.knative.dev/creator: 412412438508-compute@developer.gserviceaccount.com
+    serving.knative.dev/lastModifier: 412412438508-compute@developer.gserviceaccount.com
+  creationTimestamp: '2026-02-28T09:49:36.046462Z'
+  generation: 1
+  labels:
+    cloud.googleapis.com/location: us-central1
+  name: instagram-automation
+  namespace: '412412438508'
+  resourceVersion: AAZL30bLLqk
+  selfLink: /apis/serving.knative.dev/v1/namespaces/412412438508/services/instagram-automation
+  uid: e9c0b176-1fab-42ae-a6a7-2380074872db
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/client-name: gcloud
+        run.googleapis.com/client-version: 558.0.0
+        run.googleapis.com/startup-cpu-boost: 'true'
+      labels:
+        client.knative.dev/nonce: tvamviyycx
+        run.googleapis.com/startupProbeType: Default
+    spec:
+      containerConcurrency: 80
+      containers:
+      - image: gcr.io/crosspostinginstagram/instagram-automation
+        ports:
+        - containerPort: 8080
+          name: http1
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+        startupProbe:
+          failureThreshold: 1
+          periodSeconds: 240
+          tcpSocket:
+            port: 8080
+          timeoutSeconds: 240
+      serviceAccountName: 412412438508-compute@developer.gserviceaccount.com
+      timeoutSeconds: 300
+  traffic:
+  - latestRevision: true
+    percent: 100
+status:
+  address:
+    url: https://instagram-automation-76kati656a-uc.a.run.app
+  conditions:
+  - lastTransitionTime: '2026-02-28T09:49:57.775017Z'
+    status: 'True'
+    type: Ready
+  - lastTransitionTime: '2026-02-28T09:49:57.422380Z'
+    status: 'True'
+    type: ConfigurationsReady
+  - lastTransitionTime: '2026-02-28T09:49:57.747418Z'
+    status: 'True'
+    type: RoutesReady
+  latestCreatedRevisionName: instagram-automation-00001-fn5
+  latestReadyRevisionName: instagram-automation-00001-fn5
+  observedGeneration: 1
+  traffic:
+  - latestRevision: true
+    percent: 100
+    revisionName: instagram-automation-00001-fn5
+  url: https://instagram-automation-76kati656a-uc.a.run.app

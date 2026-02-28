@@ -1,7 +1,7 @@
 
 import { auth } from "@/auth";
 import Dashboard from "@/components/Dashboard";
-import { getSocialNetworks } from "@/app/actions";
+import { getSocialNetworks, getLastPost } from "@/app/actions";
 import { redirect } from "next/navigation";
 
 export default async function Home() {
@@ -9,6 +9,7 @@ export default async function Home() {
   if (!session?.user) redirect("/login");
 
   const initialNetworks = await getSocialNetworks();
+  const initialPost = await getLastPost();
 
   return (
     <main className="min-h-screen bg-gray-50 p-4 md:p-8">
@@ -21,7 +22,7 @@ export default async function Home() {
             {/* Add more header actions like Settings/Logout here */}
          </header>
          
-         <Dashboard initialNetworks={initialNetworks} />
+        <Dashboard initialNetworks={initialNetworks} initialPost={initialPost} />
       </div>
     </main>
   );
