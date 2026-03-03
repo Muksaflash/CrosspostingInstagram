@@ -3,7 +3,15 @@ import Google from "next-auth/providers/google";
 import type { NextAuthConfig } from "next-auth";
 
 export const authConfig: NextAuthConfig = {
-  providers: [Google],
+  providers: [
+    Google({
+      authorization: {
+        params: {
+          prompt: "select_account",
+        },
+      },
+    }),
+  ],
   session: { strategy: "jwt" },
   callbacks: {
     jwt({ token, user, account }) {
