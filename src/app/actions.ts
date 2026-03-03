@@ -151,6 +151,48 @@ export async function getLastPost() {
   }
 }
 
+export async function getAutoPostedTracker(email: string): Promise<string[]> {
+  try {
+    const doc = await firestore
+      .collection("users")
+      .doc(email)
+      .collection("cache")
+      .doc("autoPosted")
+      .get();
+
+    if (doc.exists) {
+      const data = doc.data();
+      return Array.isArray(data?.postKeys) ? data.postKeys : [];
+    }
+  } catch (e) {
+    console.error("Failed to get autoPosted tracker:", e);
+  }
+  return [];
+}
+
+export async function addPostToTracker(email: string, postKey: string) {
+  try {
+    const docRef = firestore
+      .collection("users")
+      .doc(email)
+      .collection("cache")
+      .doc("autoPosted");
+
+    const doc = await docRef.get();
+    let postKeys = [];
+    if (doc.exists) {
+      postKeys = doc.data()?.postKeys || [];
+    }
+
+    // Only keep last 100 to avoid document size issues over time
+    postKeys = [postKey, ...postKeys].slice(0, 100);
+
+    await docRef.set({ postKeys });
+  } catch (e) {
+    console.error("Failed to add post to tracker:", e);
+  }
+}
+
 export async function adaptPostText(text: string, prompt: string, mainPrompt: string, model: string) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");

@@ -47,6 +47,53 @@ export async function getLatestInstagramPost(usernameUrl: string, rapidApiKey: s
   return processInstagramItem(latestItem, data);
 }
 
+export async function getRecentInstagramPosts(usernameUrl: string, rapidApiKey: string): Promise<InstagramPost[]> {
+  const res = await fetch(API_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-rapidapi-host': RAPIDAPI_HOST,
+      'x-rapidapi-key': rapidApiKey,
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    },
+    body: JSON.stringify({ url: usernameUrl }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`RapidAPI Error: ${res.status} ${await res.text()}`);
+  }
+
+  const data = await res.json();
+  if (!Array.isArray(data) || data.length === 0) {
+    throw new Error('Empty response from Instagram API');
+  }
+
+  // The endpoint returns a flat array of media items. Group them by shortcode/id to form distinct posts.
+  const postsMap = new Map<string, any[]>();
+
+  for (const item of data) {
+    const sc = item?.meta?.shortcode || item?.meta?.id;
+    if (!sc) continue;
+    if (!postsMap.has(sc)) postsMap.set(sc, []);
+    postsMap.get(sc)!.push(item);
+  }
+
+  const recentPosts: InstagramPost[] = [];
+
+  for (const [sc, items] of postsMap.entries()) {
+    // We treat the first item in the group as the main metadata source
+    const mainItem = items[0];
+    if (mainItem) {
+      recentPosts.push(processInstagramItem(mainItem, data));
+    }
+  }
+
+  // Sort them by takenAt descending (newest first)
+  recentPosts.sort((a, b) => b.takenAt - a.takenAt);
+
+  return recentPosts;
+}
+
 export async function getInstagramQuota(rapidApiKey: string) {
   if (!rapidApiKey) {
     throw new Error('RapidAPI Key missing');

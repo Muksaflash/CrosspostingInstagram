@@ -41,57 +41,97 @@ interface InstagramPost {
 }
 
 function QuotaWidget({ quotas, fetchQuotas, loading }: any) {
+  const [isOpen, setIsOpen] = useState(false);
+
   if (!quotas || (!quotas.instagram && !quotas.slideshow)) return null;
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold flex items-center gap-2">Лимиты и Квоты</h2>
-        <button onClick={fetchQuotas} disabled={loading} className="text-blue-600 hover:text-blue-700 disabled:opacity-50">
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-4">
-        {/* Instagram */}
-        <div className="border rounded-lg overflow-hidden">
-          <div className="bg-[#2D5A40] text-white px-4 py-2 font-medium text-sm">
-            Запросов к Instagram за месячный период
-          </div>
-          <div className="p-4 space-y-1 text-sm bg-white min-h-[100px]">
-            {quotas.instagram ? (
-              <>
-                <p className="text-gray-900">{quotas.instagram.limit - quotas.instagram.remaining} из {quotas.instagram.limit}</p>
-                {quotas.instagramRefreshDate && <p className="text-gray-600">Обновится {quotas.instagramRefreshDate}</p>}
-              </>
-            ) : (
-              <p className="text-gray-500">Нет данных</p>
-            )}
-          </div>
+    <div className="bg-white rounded-xl shadow-sm mb-6 border border-gray-100 overflow-hidden">
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center gap-4">
+          <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+            Лимиты и Квоты
+          </h2>
+          {!isOpen && (
+            <div className="flex gap-3 text-xs font-medium text-gray-500">
+              {quotas.instagram && (
+                <span className="bg-gray-100 px-2 py-1 rounded">
+                  Insta: {quotas.instagram.limit - quotas.instagram.remaining} / {quotas.instagram.limit}
+                </span>
+              )}
+              {quotas.slideshow && (
+                <span className="bg-gray-100 px-2 py-1 rounded">
+                  Slide: {quotas.slideshow.credits_usage} / {quotas.slideshow.credits_limit}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Slideshow */}
-        <div className="border rounded-lg overflow-hidden">
-          <div className="bg-[#2D5A40] text-white px-4 py-2 font-medium text-sm">
-            Кредиты на слайдшоу за месячный период
-          </div>
-          <div className="p-4 space-y-1 text-sm bg-white min-h-[100px]">
-            {quotas.slideshow ? (
-              <>
-                <p className="text-gray-900">План: {quotas.slideshow.plan}</p>
-                <p className="text-gray-900">
-                  Кредитов израсходовано: {quotas.slideshow.credits_limit > 0 ? Math.round((quotas.slideshow.credits_usage / quotas.slideshow.credits_limit) * 100) : 0}%
-                  ({quotas.slideshow.credits_usage} из {quotas.slideshow.credits_limit})
-                </p>
-                {quotas.slideshowRefreshDate && <p className="text-gray-600">Обновится {quotas.slideshowRefreshDate}</p>}
-                {!quotas.slideshowRefreshDate && <p className="text-gray-400 text-xs">Дата регистрации не задана в настройках</p>}
-              </>
-            ) : (
-              <p className="text-gray-500">Нет данных</p>
-            )}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={(e) => { e.stopPropagation(); fetchQuotas(); }}
+            disabled={loading}
+            className="text-gray-400 hover:text-blue-600 disabled:opacity-50"
+            title="Обновить квоты"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          <div className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
           </div>
         </div>
       </div>
+
+      {isOpen && (
+        <div className="p-4 pt-0 border-t border-gray-100">
+          <div className="grid md:grid-cols-2 gap-4 mt-4">
+            {/* Instagram */}
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-[#2D5A40] text-white px-4 py-2 font-medium text-sm">
+                Запросов к Instagram за месячный период
+              </div>
+              <div className="p-4 space-y-1 text-sm bg-gray-50 min-h-[100px]">
+                {quotas.instagram ? (
+                  <>
+                    <p className="text-gray-900">{quotas.instagram.limit - quotas.instagram.remaining} из {quotas.instagram.limit}</p>
+                    {quotas.instagramRefreshDate && <p className="text-gray-600">Обновится {quotas.instagramRefreshDate}</p>}
+                  </>
+                ) : (
+                  <p className="text-gray-500">Нет данных</p>
+                )}
+              </div>
+            </div>
+
+            {/* Slideshow */}
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-[#2D5A40] text-white px-4 py-2 font-medium text-sm">
+                Кредиты на слайдшоу за месячный период
+              </div>
+              <div className="p-4 space-y-1 text-sm bg-gray-50 min-h-[100px]">
+                {quotas.slideshow ? (
+                  <>
+                    <p className="text-gray-900">План: {quotas.slideshow.plan}</p>
+                    <p className="text-gray-900">
+                      Кредитов израсходовано: {quotas.slideshow.credits_limit > 0 ? Math.round((quotas.slideshow.credits_usage / quotas.slideshow.credits_limit) * 100) : 0}%
+                      ({quotas.slideshow.credits_usage} из {quotas.slideshow.credits_limit})
+                    </p>
+                    {quotas.slideshowRefreshDate && <p className="text-gray-600">Обновится {quotas.slideshowRefreshDate}</p>}
+                    {!quotas.slideshowRefreshDate && <p className="text-gray-400 text-xs">Дата регистрации не задана в настройках</p>}
+                  </>
+                ) : (
+                  <p className="text-gray-500">Нет данных</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -109,6 +149,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
   const [loading, setLoading] = useState(false);
   const [fetchLink, setFetchLink] = useState("");
   const [scheduleDate, setScheduleDate] = useState<string>("");
+  const [autoPostEnabled, setAutoPostEnabled] = useState(false);
 
   const [quotas, setQuotas] = useState<any>(null);
   const [quotaLoading, setQuotaLoading] = useState(false);
@@ -171,6 +212,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
         OPENAI_MODEL: settings.OPENAI_MODEL || 'gpt-5.2',
         MAIN_PROMPT: settings.MAIN_PROMPT || 'Ты маркетолог, который адаптирует тексты постов под разные соцсети. Если в посте есть ссылка на сайт курса то вставляй всегда эту...'
       });
+      setAutoPostEnabled(!!settings.AUTO_POST_ENABLED_AT);
     }
     setKeysLoading(false);
   };
@@ -460,6 +502,32 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
       {activeTab === 'settings' ? (
         <div className="max-w-2xl bg-white p-6 rounded-xl shadow-sm space-y-6">
           <div>
+            <h2 className="text-xl font-bold">Автоматизация</h2>
+            <p className="text-gray-500 text-sm">Настройка автоматической выкладки постов.</p>
+            <div className="mt-4 flex items-center justify-between p-4 border rounded-lg bg-gray-50">
+              <div>
+                <span className="font-semibold text-gray-800">Авто-выкладка новых постов</span>
+                <p className="text-xs text-gray-500 mt-1">
+                  Каждый час проверяет новые посты в Instagram и автоматически выкладывает во включенные сети.
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={autoPostEnabled}
+                  onChange={async (e) => {
+                    const checked = e.target.checked;
+                    setAutoPostEnabled(checked);
+                    await handleSaveKey('AUTO_POST_ENABLED_AT', checked ? Date.now().toString() : '');
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+          </div>
+
+          <div className="border-t pt-6">
             <h2 className="text-xl font-bold">API Integrations</h2>
             <p className="text-gray-500 text-sm">Configure your personal API keys for the automation to work.</p>
           </div>
