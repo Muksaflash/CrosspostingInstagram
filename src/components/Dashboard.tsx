@@ -150,6 +150,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
   const [fetchLink, setFetchLink] = useState("");
   const [scheduleDate, setScheduleDate] = useState<string>("");
   const [autoPostEnabled, setAutoPostEnabled] = useState(false);
+  const [pinterestLink, setPinterestLink] = useState<string>("");
 
   const [quotas, setQuotas] = useState<any>(null);
   const [quotaLoading, setQuotaLoading] = useState(false);
@@ -213,6 +214,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
         MAIN_PROMPT: settings.MAIN_PROMPT || 'Ты маркетолог, который адаптирует тексты постов под разные соцсети. Если в посте есть ссылка на сайт курса то вставляй всегда эту...'
       });
       setAutoPostEnabled(!!settings.AUTO_POST_ENABLED_AT);
+      setPinterestLink(settings.PINTEREST_LINK || '');
     }
     setKeysLoading(false);
   };
@@ -301,6 +303,17 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
       return;
     }
 
+    // Inject global Pinterest link as fallback for networks that don't have their own
+    const networksWithPinLink = enabledNetworks.map(net => {
+      if (pinterestLink && (net.platform || net.name).toLowerCase().includes('pinterest')) {
+        const ps = net.publishingSettings || {};
+        if (!ps.pinterestLink) {
+          return { ...net, publishingSettings: { ...ps, pinterestLink } };
+        }
+      }
+      return net;
+    });
+
     const newNetworks = [...networks];
     enabledNetworks.forEach(net => {
       const idx = newNetworks.findIndex(n => n === net);
@@ -313,7 +326,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          networks: enabledNetworks,
+          networks: networksWithPinLink,
           mediaUrls: post.mediaUrls,
           originalCaption: post.caption,
           postAt: scheduleDate ? new Date(scheduleDate).toISOString() : undefined
@@ -434,12 +447,21 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
     newNetworks[index].status = 'publishing';
     setNetworks(newNetworks);
 
+    // Inject global Pinterest link as fallback
+    let netToPublish = networks[index];
+    if (pinterestLink && (netToPublish.platform || netToPublish.name).toLowerCase().includes('pinterest')) {
+      const ps = netToPublish.publishingSettings || {};
+      if (!ps.pinterestLink) {
+        netToPublish = { ...netToPublish, publishingSettings: { ...ps, pinterestLink } };
+      }
+    }
+
     try {
       const res = await fetch("/api/postmypost/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          networks: [networks[index]],
+          networks: [netToPublish],
           mediaUrls: post.mediaUrls,
           originalCaption: post.caption,
           postAt: scheduleDate ? new Date(scheduleDate).toISOString() : undefined
@@ -697,6 +719,31 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                     />
                     <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                   </label>
+                </div>
+
+                {/* Global Pinterest Link */}
+                <div className="rounded-xl bg-gradient-to-r from-red-50 to-pink-50 border border-red-100 p-5 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">📌</span>
+                    <span className="font-semibold text-gray-800">Ссылка для Pinterest</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={pinterestLink}
+                      onChange={(e) => setPinterestLink(e.target.value)}
+                      placeholder="https://mysite.com/course"
+                      className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-red-400 focus:outline-none"
+                    />
+                    <button
+                      onClick={() => handleSaveKey('PINTEREST_LINK', pinterestLink)}
+                      className="rounded-lg bg-red-600 px-4 py-2 text-white text-sm font-medium hover:bg-red-700 transition-colors flex items-center gap-1.5"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      Сохранить
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">Эта ссылка будет добавлена ко всем пинам Pinterest (если у аккаунта нет своей ссылки).</p>
                 </div>
 
                 <div className="rounded-xl bg-white p-6 shadow-sm">

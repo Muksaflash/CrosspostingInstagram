@@ -95,8 +95,9 @@ export async function POST(req: Request) {
 
       if (net.adaptedTitle) detail.title = net.adaptedTitle;
       
-      if (pubSettings.pinterestLink && (net.platform || net.name).toLowerCase().includes('pinterest')) {
-         detail.link = pubSettings.pinterestLink;
+      const effectivePinLink = pubSettings.pinterestLink || settings?.PINTEREST_LINK || '';
+      if (effectivePinLink && (net.platform || net.name).toLowerCase().includes('pinterest')) {
+        detail.link = effectivePinLink;
       }
 
       if ((net.platform || net.name).toLowerCase().includes('tiktok')) {
