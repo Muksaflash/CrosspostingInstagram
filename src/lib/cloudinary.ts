@@ -207,3 +207,101 @@ export async function createCloudinarySlideshowUrl(urls: string[], conf: Cloudin
 
   throw new Error('Timeout waiting for slideshow');
 }
+
+export async function cleanupOldCloudinaryAssets(conf: CloudinaryConfig, maxAgeHours: number): Promise<{ deletedImages: number, deletedVideos: number }> {
+  if (!conf.cloudName || !conf.apiKey || !conf.apiSecret) {
+    throw new Error('Cloudinary credentials missing');
+  }
+
+  const auth = Buffer.from(`${conf.apiKey}:${conf.apiSecret}`).toString('base64');
+  const headers = {
+    'Authorization': `Basic ${auth}`,
+    'Content-Type': 'application/json'
+  };
+
+  let deletedImages = 0;
+  let deletedVideos = 0;
+
+  const deleteOldForType = async (resourceType: 'image' | 'video'): Promise<number> => {
+    let deletedCount = 0;
+    let nextCursor = null;
+
+    do {
+      // 1. Fetch resources
+      let listUrl = `https://api.cloudinary.com/v1_1/${conf.cloudName}/resources/${resourceType}?max_results=500`;
+      if (nextCursor) {
+        listUrl += `&next_cursor=${nextCursor}`;
+      }
+
+      console.log(`Cloudinary: Fetching ${resourceType}s from ${listUrl}`);
+      const listRes = await fetch(listUrl, { method: 'GET', headers });
+      if (!listRes.ok) {
+        const errText = await listRes.text();
+        console.error(`Cloudinary list error (${listRes.status}): ${errText}`);
+        break;
+      }
+
+      const listData = await listRes.json();
+      const resources = listData.resources || [];
+      nextCursor = listData.next_cursor;
+      console.log(`Cloudinary: Found ${resources.length} ${resourceType}(s)`);
+
+      // 2. Filter old resources
+      const now = Date.now();
+      const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
+
+      const oldPublicIds = resources
+        .filter((r: any) => {
+          const createdAt = new Date(r.created_at).getTime();
+          const isOld = (now - createdAt) > maxAgeMs;
+          console.log(`  Resource ${r.public_id}: created=${r.created_at}, age=${Math.round((now - createdAt) / 3600000)}h, old=${isOld}`);
+          return isOld;
+        })
+        .map((r: any) => r.public_id);
+      console.log(`Cloudinary: ${oldPublicIds.length} ${resourceType}(s) older than ${maxAgeHours}h to delete`);
+
+      // 3. Delete in batches (Admin API allows up to 100 per request)
+      const batchSize = 100;
+      for (let i = 0; i < oldPublicIds.length; i += batchSize) {
+        const batch = oldPublicIds.slice(i, i + batchSize);
+        // Note: Admin API delete endpoint uses form-data or JSON with "public_ids" array.
+        // It's a bit tricky. For Admin API, the endpoint is DELETE /v1_1/:cloud_name/resources/image/upload
+        // But let's use the explicit 'delete_resources' endpoint that accepts JSON.
+        // DELETE /v1_1/:cloud_name/resources/image
+        // Body: public_ids[]=id1&public_ids[]=id2
+
+        // Actually, easiest way is to use destroy endpoint for single file or use delete_resources for multiple.
+        // Let's use the bulk delete endpoint: DELETE /v1_1/:cloud_name/resources/:resource_type/upload
+
+        // Build query string for public_ids[]=... (Cloudinary Admin API requires this over URL, not body for DELETE)
+        const qs = batch.map((id: string) => `public_ids[]=${encodeURIComponent(id)}`).join('&');
+        const deleteUrl = `https://api.cloudinary.com/v1_1/${conf.cloudName}/resources/${resourceType}/upload?${qs}`;
+
+        const delRes = await fetch(deleteUrl, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Basic ${auth}`
+          }
+        });
+
+        if (delRes.ok) {
+          const delData = await delRes.json();
+          // delData.deleted is an object like { "public_id1": "deleted", ... }
+          const deletedMap = delData.deleted || {};
+          const successfulDeletes = Object.values(deletedMap).filter(status => status === 'deleted').length;
+          deletedCount += successfulDeletes;
+        } else {
+          console.error(`Cloudinary delete error: ${await delRes.text()}`);
+        }
+      }
+
+    } while (nextCursor);
+
+    return deletedCount;
+  };
+
+  deletedImages = await deleteOldForType('image');
+  deletedVideos = await deleteOldForType('video');
+
+  return { deletedImages, deletedVideos };
+}
