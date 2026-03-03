@@ -20,7 +20,10 @@
     ],
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    "types": [
+      "@twa-dev/types"
+    ]
   },
   "include": [
     "next-env.d.ts",
