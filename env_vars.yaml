@@ -1,3 +1,5 @@
+NEXTAUTH_URL: "https://instagram-automation-412412438508.us-central1.run.app"
+AUTH_TRUST_HOST: "true"
 AUTH_SECRET: "5bdae9479fd0137ec108774b8b9cf566636d9cdae30c86a76abaa7e1b40b74bd"
 AUTH_GOOGLE_ID: "412412438508-t5dm32ko2stn9no1d3p2nvm1g1a9j1v0.apps.googleusercontent.com"
 AUTH_GOOGLE_SECRET: "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"
