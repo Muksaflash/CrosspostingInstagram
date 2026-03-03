@@ -16,7 +16,13 @@ export interface InstagramPost {
   takenAt: number;
 }
 
-export async function getLatestInstagramPost(usernameUrl: string, rapidApiKey: string): Promise<InstagramPost> {
+export interface InstagramQuota {
+  limit: number;
+  remaining: number;
+  resetSeconds: number;
+}
+
+export async function getLatestInstagramPost(usernameUrl: string, rapidApiKey: string): Promise<{ post: InstagramPost, quota: InstagramQuota }> {
   const res = await fetch(API_ENDPOINT, {
     method: 'POST',
     headers: {
@@ -44,10 +50,19 @@ export async function getLatestInstagramPost(usernameUrl: string, rapidApiKey: s
     return item.meta.takenAt > best.meta.takenAt ? item : best;
   }, null) || data[0];
 
-  return processInstagramItem(latestItem, data);
+  const remaining = res.headers.get('x-ratelimit-requests-remaining') || '0';
+  const limit = res.headers.get('x-ratelimit-requests-limit') || '0';
+  const resetSeconds = res.headers.get('x-ratelimit-requests-reset') || '0';
+  const quota = {
+    limit: parseInt(limit, 10),
+    remaining: parseInt(remaining, 10),
+    resetSeconds: parseInt(resetSeconds, 10)
+  };
+
+  return { post: processInstagramItem(latestItem, data), quota };
 }
 
-export async function getRecentInstagramPosts(usernameUrl: string, rapidApiKey: string): Promise<InstagramPost[]> {
+export async function getRecentInstagramPosts(usernameUrl: string, rapidApiKey: string): Promise<{ posts: InstagramPost[], quota: InstagramQuota }> {
   const res = await fetch(API_ENDPOINT, {
     method: 'POST',
     headers: {
@@ -91,36 +106,19 @@ export async function getRecentInstagramPosts(usernameUrl: string, rapidApiKey: 
   // Sort them by takenAt descending (newest first)
   recentPosts.sort((a, b) => b.takenAt - a.takenAt);
 
-  return recentPosts;
-}
-
-export async function getInstagramQuota(rapidApiKey: string) {
-  if (!rapidApiKey) {
-    throw new Error('RapidAPI Key missing');
-  }
-
-  const res = await fetch(API_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-rapidapi-host': RAPIDAPI_HOST,
-      'x-rapidapi-key': rapidApiKey
-    },
-    body: JSON.stringify({ url: 'https://instagram.com/instagram' })
-  });
-
   const remaining = res.headers.get('x-ratelimit-requests-remaining') || '0';
   const limit = res.headers.get('x-ratelimit-requests-limit') || '0';
   const resetSeconds = res.headers.get('x-ratelimit-requests-reset') || '0';
-
-  return {
+  const quota = {
     limit: parseInt(limit, 10),
     remaining: parseInt(remaining, 10),
     resetSeconds: parseInt(resetSeconds, 10)
   };
+
+  return { posts: recentPosts, quota };
 }
 
-export async function getInstagramPostByShortcode(shortcode: string, rapidApiKey: string): Promise<InstagramPost> {
+export async function getInstagramPostByShortcode(shortcode: string, rapidApiKey: string): Promise<{ post: InstagramPost, quota: InstagramQuota }> {
   return new Promise((resolve, reject) => {
     const postData = JSON.stringify({ shortcode });
     const options = {
@@ -169,7 +167,18 @@ export async function getInstagramPostByShortcode(shortcode: string, rapidApiKey
           // Actually, let's just use `processInstagramItem(firstItem, dataAsArray)`
           const dataArray = isArray ? data : [data];
           const firstItem = dataArray[0];
-          resolve(processInstagramItem(firstItem, dataArray));
+
+          const getHeader = (name: string) => Array.isArray(res.headers[name]) ? res.headers[name]?.[0] : res.headers[name];
+          const remaining = getHeader('x-ratelimit-requests-remaining') || '0';
+          const limit = getHeader('x-ratelimit-requests-limit') || '0';
+          const resetSeconds = getHeader('x-ratelimit-requests-reset') || '0';
+          const quota = {
+            limit: parseInt(limit as string, 10),
+            remaining: parseInt(remaining as string, 10),
+            resetSeconds: parseInt(resetSeconds as string, 10)
+          };
+
+          resolve({ post: processInstagramItem(firstItem, dataArray), quota });
         } catch (e: any) {
           reject(new Error(`JSON Parse Error: ${e.message} | Body: ${body.slice(0, 100)}`));
         }

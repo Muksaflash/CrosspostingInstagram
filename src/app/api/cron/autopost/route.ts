@@ -58,17 +58,37 @@ export async function GET(req: Request) {
       totalProcessed++;
 
       // Fetch recent posts
-      let recentPosts;
+      let fetchedData;
       try {
-        recentPosts = await getRecentInstagramPosts(instagramUrl, rapidApiKey);
+        fetchedData = await getRecentInstagramPosts(instagramUrl, rapidApiKey);
       } catch (err: any) {
         console.error(`Error fetching Instagram for ${email}:`, err.message);
         continue;
       }
 
+      // Save RapidAPI quota
+      try {
+        const lastUpdated = Date.now();
+        const resetEpochMs = fetchedData.quota.resetSeconds > 0 ? (lastUpdated + fetchedData.quota.resetSeconds * 1000) : 0;
+        await firestore
+          .collection("users")
+          .doc(email)
+          .collection("cache")
+          .doc("instagramQuota")
+          .set({
+            limit: fetchedData.quota.limit,
+            remaining: fetchedData.quota.remaining,
+            resetEpochMs,
+            lastUpdated,
+            resetSeconds: fetchedData.quota.resetSeconds
+          });
+      } catch (e) {
+        console.error(`Failed to cache quota for ${email}:`, e);
+      }
+
       // Filter eligible posts
       const trackers = await getAutoPostedTracker(email);
-      const eligiblePosts = recentPosts.filter(post => {
+      const eligiblePosts = fetchedData.posts.filter((post: any) => {
         // Must be taken AFTER the toggle was turned on
         // Note: Instagram takenAt is in seconds usually. If we save Date.now() in JS (ms), we need to compare properly.
         // Let's assume Instagram takenAt is in UNIX seconds. Date.now() is in ms.
@@ -84,7 +104,7 @@ export async function GET(req: Request) {
       if (eligiblePosts.length === 0) continue;
 
       // We should post them from oldest to newest (to preserve chronological order if multiple are missed)
-      eligiblePosts.sort((a, b) => a.takenAt - b.takenAt);
+      eligiblePosts.sort((a: any, b: any) => a.takenAt - b.takenAt);
 
       // Get user's social networks
       const networksSnapshot = await userDoc.ref.collection("socialNetworks").get();

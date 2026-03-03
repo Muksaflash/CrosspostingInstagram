@@ -501,32 +501,6 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
 
       {activeTab === 'settings' ? (
         <div className="max-w-2xl bg-white p-6 rounded-xl shadow-sm space-y-6">
-          <div>
-            <h2 className="text-xl font-bold">Автоматизация</h2>
-            <p className="text-gray-500 text-sm">Настройка автоматической выкладки постов.</p>
-            <div className="mt-4 flex items-center justify-between p-4 border rounded-lg bg-gray-50">
-              <div>
-                <span className="font-semibold text-gray-800">Авто-выкладка новых постов</span>
-                <p className="text-xs text-gray-500 mt-1">
-                  Каждый час проверяет новые посты в Instagram и автоматически выкладывает во включенные сети.
-                </p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={autoPostEnabled}
-                  onChange={async (e) => {
-                    const checked = e.target.checked;
-                    setAutoPostEnabled(checked);
-                    await handleSaveKey('AUTO_POST_ENABLED_AT', checked ? Date.now().toString() : '');
-                  }}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
-            </div>
-          </div>
-
           <div className="border-t pt-6">
             <h2 className="text-xl font-bold">API Integrations</h2>
             <p className="text-gray-500 text-sm">Configure your personal API keys for the automation to work.</p>
@@ -702,6 +676,29 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
 
               {/* Right Column: Networks */}
               <div className="space-y-6 lg:col-span-2">
+                {/* Auto-Posting Toggle Card */}
+                <div className="rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-5 shadow-sm flex items-center justify-between">
+                  <div>
+                    <span className="font-semibold text-gray-800 text-lg">Автоматическая выкладка</span>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Каждый час проверяет новые посты в Instagram и публикует во включенные сети.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer ml-4 min-w-max">
+                    <input
+                      type="checkbox"
+                      checked={autoPostEnabled}
+                      onChange={async (e) => {
+                        const checked = e.target.checked;
+                        setAutoPostEnabled(checked);
+                        await handleSaveKey('AUTO_POST_ENABLED_AT', checked ? Date.now().toString() : '');
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
                 <div className="rounded-xl bg-white p-6 shadow-sm">
                   <div className="mb-6 flex items-center justify-between">
                     <div className="flex items-center gap-4">

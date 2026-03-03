@@ -97,40 +97,57 @@ export async function saveSocialNetwork(
 
 export async function fetchLatestPost(link?: string) {
   const session = await auth();
-  if (!session?.user) throw new Error("Unauthorized");
+  if (!session?.user?.email) throw new Error("Unauthorized");
 
   const settings = await getUserSettings();
   const rapidApiKey = settings?.RAPIDAPI_KEY;
   if (!rapidApiKey) throw new Error("RAPIDAPI_KEY not configured in settings");
 
-  let result;
+  let postResult;
+  let quota;
   if (link) {
     const { getInstagramPostByShortcode } = await import("@/lib/instagram");
      const match = link.match(/instagram\.com\/(?:reel|p|tv)\/([A-Za-z0-9_\-]+)/i);
      const shortcode = match?.[1];
     if (!shortcode) throw new Error(`Invalid Instagram link: Could not find shortcode in ${link}`);
-    result = await getInstagramPostByShortcode(shortcode, rapidApiKey);
+    const fetchRes = await getInstagramPostByShortcode(shortcode, rapidApiKey);
+    postResult = fetchRes.post;
+    quota = fetchRes.quota;
   } else {
      const { getLatestInstagramPost } = await import("@/lib/instagram");
     const usernameUrl = settings?.INSTAGRAM_URL || "https://instagram.com/username";
-    result = await getLatestInstagramPost(usernameUrl, rapidApiKey);
+    const fetchRes = await getLatestInstagramPost(usernameUrl, rapidApiKey);
+    postResult = fetchRes.post;
+    quota = fetchRes.quota;
   }
 
   // Persist the fetched post so it survives hot reloads
-  if (result && session.user.email) {
+  if (session.user.email) {
     try {
-      await firestore
-        .collection("users")
-        .doc(session.user.email)
-        .collection("cache")
-        .doc("lastPost")
-        .set(result);
+      if (quota) {
+        const lastUpdated = Date.now();
+        const resetEpochMs = quota.resetSeconds > 0 ? (lastUpdated + quota.resetSeconds * 1000) : 0;
+        await firestore
+          .collection("users")
+          .doc(session.user.email)
+          .collection("cache")
+          .doc("instagramQuota")
+          .set({ limit: quota.limit, remaining: quota.remaining, resetEpochMs, lastUpdated, resetSeconds: quota.resetSeconds });
+      }
+      if (postResult) {
+        await firestore
+          .collection("users")
+          .doc(session.user.email)
+          .collection("cache")
+          .doc("lastPost")
+          .set(postResult);
+      }
     } catch (e) {
-      console.error("Failed to cache last post:", e);
+      console.error("Failed to cache post or quota:", e);
     }
   }
 
-  return result;
+  return postResult;
 }
 
 export async function getLastPost() {
@@ -251,9 +268,9 @@ export async function publishPost(mediaUrls: string[], caption: string, accounts
   return await createPublication(params, token);
 }
 
-function formatResetDateFromSeconds(resetSeconds: number): string {
-  if (!resetSeconds || resetSeconds <= 0) return "";
-  const resetDate = new Date(Date.now() + resetSeconds * 1000);
+function formatResetDate(resetEpochMs: number): string {
+  if (!resetEpochMs) return "";
+  const resetDate = new Date(resetEpochMs);
   const day = String(resetDate.getDate()).padStart(2, '0');
   const month = String(resetDate.getMonth() + 1).padStart(2, '0');
   return `${day}.${month}`;
@@ -278,7 +295,7 @@ function calculateCloudinaryRefreshDate(regDateStr: string): string {
 
 export async function getQuotas() {
   const session = await auth();
-  if (!session?.user) throw new Error("Unauthorized");
+  if (!session?.user?.email) throw new Error("Unauthorized");
 
   const settings = await getUserSettings();
 
@@ -291,12 +308,19 @@ export async function getQuotas() {
 
   try {
     if (settings?.RAPIDAPI_KEY) {
-      const { getInstagramQuota } = await import("@/lib/instagram");
-      const quota = await getInstagramQuota(settings.RAPIDAPI_KEY);
-      metrics.instagram = quota;
-      // Автоматически рассчитываем дату обновления из заголовка reset
-      if (quota.resetSeconds > 0) {
-        metrics.instagramRefreshDate = formatResetDateFromSeconds(quota.resetSeconds);
+      const doc = await firestore
+        .collection("users")
+        .doc(session.user.email)
+        .collection("cache")
+        .doc("instagramQuota")
+        .get();
+
+      if (doc.exists) {
+        const quotaData = doc.data() as any;
+        metrics.instagram = { limit: quotaData.limit, remaining: quotaData.remaining };
+        if (quotaData.resetEpochMs > 0) {
+          metrics.instagramRefreshDate = formatResetDate(quotaData.resetEpochMs);
+        }
       }
     }
   } catch (e) {
@@ -313,7 +337,7 @@ export async function getQuotas() {
       });
       // 30-дневный цикл от даты регистрации
       if (settings?.CLOUDINARY_REG_DATE) {
-        metrics.slideshowRefreshDate = calculateCloudinaryRefreshDate(settings.CLOUDINARY_REG_DATE);
+        metrics.slideshowRefreshDate = calculateCloudinaryRefreshDate(settings.CLOUDINARY_REG_DATE as string);
       }
     }
   } catch (e) {
