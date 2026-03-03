@@ -107,6 +107,10 @@ export default async function TelegramLinkPage({
     );
   }
 
+  // Extract bot username from env (e.g. '@CrossPostInstBot' -> 'CrossPostInstBot')
+  const botUsername = process.env.TGBOT_ADRES?.replace('@', '');
+  const tgLink = botUsername ? `https://t.me/${botUsername}` : "https://web.telegram.org";
+
   // Success UI
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-zinc-950 px-4">
@@ -117,16 +121,22 @@ export default async function TelegramLinkPage({
           </svg>
         </div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
-          Account Linked Successfully
+          Успешно привязано!
         </h1>
-        <p className="text-gray-600 dark:text-gray-300 mb-6">
-          Your Telegram account is now connected to your Google profile. 
-          You can close this browser window and return to Telegram.
+        <p className="text-gray-600 dark:text-gray-300 mb-8">
+          Ваш Telegram-аккаунт теперь связан с профилем Google.
+          Вы можете закрыть это окно и вернуться в мессенджер.
         </p>
         
-        {/* Simple deep link back to TG bots usually fails gracefully in non-mobile, so providing a clear manual instruction is best fallback */}
-        <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
-          Please close this page.
+        <a
+          href={tgLink}
+          className="w-full bg-blue-500 text-white px-4 py-3 rounded-lg font-medium hover:bg-blue-600 flex items-center justify-center transition-colors shadow-sm mb-4"
+        >
+          Вернуться в Telegram
+        </a>
+
+        <p className="text-sm text-gray-400 dark:text-zinc-500">
+          Если кнопка не сработала, просто закройте эту вкладку.
         </p>
       </div>
     </div>
