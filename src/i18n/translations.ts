@@ -127,8 +127,8 @@ export const translations = {
       creditsUsed: "Кредитов израсходовано",
       regDateNotSet: "Дата регистрации не задана в настройках",
       tabs: {
-        dashboard: "Dashboard",
-        settings: "Settings"
+        dashboard: "Дашборд",
+        settings: "Настройки"
       },
       logout: "Выйти",
       settingsText: {
@@ -177,7 +177,7 @@ export const translations = {
         desc: "Эта ссылка будет добавлена ко всем пинам Pinterest (если у аккаунта нет своей ссылки)."
       },
       socialNetworks: {
-        title: "Social Networks",
+        title: "Социальные сети",
         addNetwork: "Добавить соцсеть",
         publishAll: "Опубликовать всё"
       },

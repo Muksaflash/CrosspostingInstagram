@@ -6,6 +6,13 @@ import { saveSocialNetwork, saveUserSetting, getUserSettings, getQuotas } from "
 import Image from "next/image";
 import { signOut } from "next-auth/react";
 import { useLanguage } from "@/components/LanguageProvider";
+import DatePicker, { registerLocale } from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { ru as ruLocale } from "date-fns/locale/ru";
+import { enUS as enLocale } from "date-fns/locale/en-US";
+
+registerLocale("ru", ruLocale);
+registerLocale("en", enLocale);
 
 export interface PublishingSettings {
   slideshowMode?: 'auto' | 'always' | 'never';
@@ -139,7 +146,7 @@ function QuotaWidget({ quotas, fetchQuotas, loading }: any) {
 }
 
 export default function Dashboard({ initialNetworks, initialPost }: { initialNetworks: any[]; initialPost?: any }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'settings'>('dashboard');
 
   const [networks, setNetworks] = useState<SocialNetwork[]>(initialNetworks.length ? initialNetworks : [
@@ -152,6 +159,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
   const [loading, setLoading] = useState(false);
   const [fetchLink, setFetchLink] = useState("");
   const [scheduleDate, setScheduleDate] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [autoPostEnabled, setAutoPostEnabled] = useState(false);
   const [pinterestLink, setPinterestLink] = useState<string>("");
 
@@ -617,7 +625,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                 <div className="rounded-xl bg-white p-6 shadow-sm">
                   <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold">
                     <Instagram className="h-5 w-5 text-pink-600" />
-                    Source Post
+                    {t('dashboard', 'sourcePost')}
                   </h2>
 
                   <div className="space-y-4">
@@ -627,7 +635,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                         disabled={loading}
                         className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
                       >
-                        {loading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin inline" /> : "Fetch Latest"}
+                        {loading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin inline" /> : t('dashboard', 'fetchLatest')}
                       </button>
                     </div>
 
@@ -658,10 +666,26 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                       <label className="block text-xs font-semibold text-gray-500 mb-1">
                         {t('dashboard', 'scheduleDate')}
                       </label>
-                      <input
-                        type="datetime-local"
-                        value={scheduleDate}
-                        onChange={(e) => setScheduleDate(e.target.value)}
+                      <DatePicker
+                        selected={selectedDate}
+                        onChange={(date: Date | null) => {
+                          setSelectedDate(date);
+                          if (date) {
+                            // Convert to format required by action: YYYY-MM-DDTHH:mm
+                            const tzOffset = date.getTimezoneOffset() * 60000;
+                            const localISOTime = (new Date(date.getTime() - tzOffset)).toISOString().slice(0, 16);
+                            setScheduleDate(localISOTime);
+                          } else {
+                            setScheduleDate("");
+                          }
+                        }}
+                        showTimeSelect
+                        timeFormat="HH:mm"
+                        timeIntervals={15}
+                        timeCaption={language === "ru" ? "Время" : "Time"}
+                        dateFormat="dd.MM.yyyy HH:mm"
+                        locale={language}
+                        placeholderText={language === "ru" ? "ДД.ММ.ГГГГ --:--" : "MM/DD/YYYY --:--"}
                         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                       />
                     </div>
@@ -752,7 +776,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                       className="rounded-lg bg-red-600 px-4 py-2 text-white text-sm font-medium hover:bg-red-700 transition-colors flex items-center gap-1.5"
                     >
                       <Save className="w-3.5 h-3.5" />
-                      Сохранить
+                      {t('dashboard', 'pinterestLink.save')}
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 mt-2">{t('dashboard', 'pinterestLink.desc')}</p>
@@ -775,7 +799,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                       className="rounded-lg bg-green-600 px-6 py-2 text-white hover:bg-green-700 flex items-center gap-2 disabled:opacity-50"
                     >
                       <Send className="h-4 w-4" />
-                      Publish All
+                      {t('dashboard', 'socialNetworks.publishAll')}
                     </button>
                   </div>
 
@@ -835,7 +859,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                     className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded flex items-center gap-2 transition-colors"
                                   >
                                     <Trash2 className="w-4 h-4" />
-                                    Удалить соцсеть
+                                    {t('dashboard', 'networkCard.deleteNetwork')}
                                   </button>
                                 </div>
                               )}
@@ -867,7 +891,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                               <p className="text-red-500 text-xs mt-1 font-medium bg-red-50 p-2 rounded border border-red-100">{net.errorMsg}</p>
                             )}
                             {net.status === 'success' && (
-                              <p className="text-green-600 text-xs mt-1 font-medium bg-green-50 p-2 rounded border border-green-100">Успешно опубликовано!</p>
+                              <p className="text-green-600 text-xs mt-1 font-medium bg-green-50 p-2 rounded border border-green-100">{t('dashboard', 'networkCard.success')}</p>
                             )}
 
                             <div className="space-y-1">
