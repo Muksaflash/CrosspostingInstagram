@@ -628,20 +628,26 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                       </button>
                     </div>
 
-                    <div className="flex gap-2">
-                      <input
-                        value={fetchLink}
-                        onChange={(e) => setFetchLink(e.target.value)}
-                        placeholder="https://instagram.com/p/..."
-                        className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                      />
-                      <button
-                        onClick={handleFetchByLink}
-                        disabled={loading || !fetchLink}
-                        className="rounded-lg bg-gray-100 p-2 hover:bg-gray-200"
-                      >
-                        <Search className="h-4 w-4" />
-                      </button>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1">
+                        Получить пост по ссылке
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          value={fetchLink}
+                          onChange={(e) => setFetchLink(e.target.value)}
+                          placeholder="https://instagram.com/p/..."
+                          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                        />
+                        <button
+                          onClick={handleFetchByLink}
+                          disabled={loading || !fetchLink}
+                          className="rounded-lg bg-gray-100 p-2 hover:bg-gray-200"
+                          title="Получить пост"
+                        >
+                          <Search className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Schedule Date Input */}
