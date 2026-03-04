@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Instagram, Wand2, Send, RefreshCw, Settings, Search, Key, Save, LogOut, Plus, X, Trash2 } from "lucide-react";
 import { saveSocialNetwork, saveUserSetting, getUserSettings, getQuotas } from "@/app/actions";
+import { translations } from "@/i18n/translations";
 import Image from "next/image";
 import { signOut } from "next-auth/react";
 import { useLanguage } from "@/components/LanguageProvider";
@@ -567,11 +568,9 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                         }}
                         className="flex-1 border p-2 rounded-md bg-white"
                       >
-                        <option value="gpt-5.2">{t('dashboard', 'settingsText.models.gpt-5.2')}</option>
-                        <option value="gpt-5.2-thinking">{t('dashboard', 'settingsText.models.gpt-5.2-thinking')}</option>
-                        <option value="gpt-5">{t('dashboard', 'settingsText.models.gpt-5')}</option>
-                        <option value="gpt-5-mini">{t('dashboard', 'settingsText.models.gpt-5-mini')}</option>
-                        <option value="gpt-5-nano">{t('dashboard', 'settingsText.models.gpt-5-nano')}</option>
+                        {Object.entries(translations[language].dashboard.settingsText.models).map(([key, label]) => (
+                          <option key={key} value={key}>{label}</option>
+                        ))}
                       </select>
                     ) : (
                       <input

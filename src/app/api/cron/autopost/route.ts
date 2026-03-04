@@ -22,12 +22,23 @@ export async function GET(req: Request) {
     const usersSnapshot = await firestore.collection("users").get();
     let totalProcessed = 0;
     let totalPublished = 0;
+    const processedEmails = new Set<string>();
 
     for (const userDoc of usersSnapshot.docs) {
-      const email = userDoc.id;
-      
-      // Get user settings
-      const settingsSnapshot = await userDoc.ref.collection("settings").get();
+      // NextAuth stores users with auto-generated doc IDs, but the dashboard
+      // saves settings/socialNetworks under users/{email}. We need to read the
+      // email from the user document data and use it to look up everything.
+      const userData = userDoc.data();
+      const email = userData?.email || userDoc.id;
+      if (!email || !email.includes('@')) {
+        continue; // Skip documents that aren't real user records
+      }
+      if (processedEmails.has(email)) continue; // Avoid processing same user twice
+      processedEmails.add(email);
+
+      // Settings are stored at users/{email}/settings/...
+      const settingsRef = firestore.collection("users").doc(email).collection("settings");
+      const settingsSnapshot = await settingsRef.get();
       const settings: Record<string, string> = {};
       settingsSnapshot.forEach(doc => {
         settings[doc.id] = doc.data().value;
@@ -89,15 +100,9 @@ export async function GET(req: Request) {
       // Filter eligible posts
       const trackers = await getAutoPostedTracker(email);
       const eligiblePosts = fetchedData.posts.filter((post: any) => {
-        // Must be taken AFTER the toggle was turned on
-        // Note: Instagram takenAt is in seconds usually. If we save Date.now() in JS (ms), we need to compare properly.
-        // Let's assume Instagram takenAt is in UNIX seconds. Date.now() is in ms.
         const postTimeMs = post.takenAt * 1000;
         if (postTimeMs < enabledAtTime) return false;
-
-        // Must not be already posted
         if (trackers.includes(post.postKey)) return false;
-
         return true;
       });
 
@@ -106,8 +111,8 @@ export async function GET(req: Request) {
       // We should post them from oldest to newest (to preserve chronological order if multiple are missed)
       eligiblePosts.sort((a: any, b: any) => a.takenAt - b.takenAt);
 
-      // Get user's social networks
-      const networksSnapshot = await userDoc.ref.collection("socialNetworks").get();
+      // Get user's social networks (also stored under users/{email})
+      const networksSnapshot = await firestore.collection("users").doc(email).collection("socialNetworks").get();
       const userNetworks = networksSnapshot.docs.map(doc => ({
         _docId: doc.id,
         ...doc.data()
@@ -179,10 +184,26 @@ export async function GET(req: Request) {
                   console.warn(`Cloudinary settings missing for ${net.name} (${email})`);
                   continue;
                 }
-                const slideUrl = await createCloudinarySlideshowUrl(mediaUrls, cloudinaryConf);
-                fileIdsSlideshow = await uploadMediaUrlsToPostMyPost([slideUrl], postMyPostToken, ppmProjectId);
-             }
-             currentFileIds = fileIdsSlideshow;
+               try {
+                  const slideUrl = await createCloudinarySlideshowUrl(mediaUrls, cloudinaryConf);
+                  fileIdsSlideshow = await uploadMediaUrlsToPostMyPost([slideUrl], postMyPostToken, ppmProjectId);
+                } catch (slideErr: any) {
+                  console.error(`Slideshow creation failed for ${net.name} (${email}):`, slideErr.message);
+                  // Fall back to original media for this network
+                  if (!fileIdsOriginal) {
+                    fileIdsOriginal = await uploadMediaUrlsToPostMyPost(mediaUrls, postMyPostToken, ppmProjectId);
+                  }
+                currentFileIds = fileIdsOriginal;
+              }
+            }
+            if (fileIdsSlideshow) currentFileIds = fileIdsSlideshow;
+            else if (!currentFileIds.length) {
+              // Slideshow failed and fallback wasn't set
+              if (!fileIdsOriginal) {
+                fileIdsOriginal = await uploadMediaUrlsToPostMyPost(mediaUrls, postMyPostToken, ppmProjectId);
+              }
+              currentFileIds = fileIdsOriginal;
+            }
           } else {
              if (!fileIdsOriginal) {
                 fileIdsOriginal = await uploadMediaUrlsToPostMyPost(mediaUrls, postMyPostToken, ppmProjectId);

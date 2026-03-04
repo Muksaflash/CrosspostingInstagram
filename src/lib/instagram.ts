@@ -214,7 +214,7 @@ function processInstagramItem(item: any, allItems: any[]): InstagramPost {
   const takenAt = meta.takenAt || 0;
   
   const postKey = (meta.id && String(meta.id)) || 
-                  (shortcode) || 
+    (shortcode && String(shortcode)) || 
                   (takenAt ? `takenAt_${takenAt}` : 'unknown');
 
   return {
