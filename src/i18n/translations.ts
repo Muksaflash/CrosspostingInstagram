@@ -22,7 +22,6 @@ export const translations = {
         desc: "Configure your personal API keys for the automation to work.",
         save: "Save",
         savePrompt: "Save Prompt",
-        
         mainPromptDesc: "This instruction will be sent to the neural network BEFORE the platform-specific instruction.",
         fields: {
           OPENAI_MODEL: { label: "OpenAI Model" },
@@ -112,7 +111,7 @@ export const translations = {
       }
     },
     page: {
-      title: "Instagram Automation",
+      title: "Cross Post Inst",
       welcome: "Welcome",
     }
   },
@@ -137,7 +136,6 @@ export const translations = {
         desc: "Настройте персональные API ключи для работы автоматизации.",
         save: "Сохранить",
         savePrompt: "Сохранить Промпт",
-        
         mainPromptDesc: "Эта инструкция будет отправляться нейросети ПЕРЕД инструкцией конкретной платформы.",
         fields: {
           OPENAI_MODEL: { label: "Модель OpenAI" },
@@ -227,7 +225,7 @@ export const translations = {
       }
     },
     page: {
-      title: "Instagram Automation",
+      title: "Cross Post Inst",
       welcome: "Добро пожаловать",
     }
   }
