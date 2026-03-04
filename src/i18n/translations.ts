@@ -53,6 +53,15 @@ export const translations = {
       postTextPlaceholder: "Instagram post text...",
       adaptBtn: "Adapt for Networks",
       noPostLoaded: "No post loaded",
+      postTypes: {
+        image: "Image",
+        video: "Video",
+        carousel: "Carousel",
+        carousel_mixed: "Carousel Mixed",
+        carousel_video: "Carousel Video",
+        carousel_image: "Carousel Image"
+      },
+      mediaCountOf: "of",
       autoPost: {
         title: "Automatic Publishing",
         desc: "Checks for new Instagram posts every hour and publishes to enabled networks."
@@ -167,6 +176,15 @@ export const translations = {
       postTextPlaceholder: "Текст поста из Instagram...",
       adaptBtn: "Адаптировать для соцсетей",
       noPostLoaded: "Пост не загружен",
+      postTypes: {
+        image: "Изображение",
+        video: "Видео",
+        carousel: "Карусель",
+        carousel_mixed: "Смешанная карусель",
+        carousel_video: "Видео карусель",
+        carousel_image: "Фото карусель"
+      },
+      mediaCountOf: "из",
       autoPost: {
         title: "Автоматическая выкладка",
         desc: "Каждый час проверяет новые посты в Instagram и публикует во включенные сети."

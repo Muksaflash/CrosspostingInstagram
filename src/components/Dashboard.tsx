@@ -515,13 +515,13 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
             onClick={() => setActiveTab('dashboard')}
             className={`font-semibold ${activeTab === 'dashboard' ? 'text-black border-b-2 border-black pb-4 -mb-4' : 'text-gray-500'}`}
           >
-            Dashboard
+            {t('dashboard', 'tabs.dashboard')}
           </button>
           <button
             onClick={() => setActiveTab('settings')}
             className={`font-semibold flex items-center gap-2 ${activeTab === 'settings' ? 'text-black border-b-2 border-black pb-4 -mb-4' : 'text-gray-500'}`}
           >
-            <Key className="w-4 h-4" /> Settings
+            <Key className="w-4 h-4" /> {t('dashboard', 'tabs.settings')}
           </button>
         </div>
         <button
@@ -586,7 +586,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                       onClick={() => handleSaveKey(field.id, apiKeys[field.id as keyof typeof apiKeys])}
                       className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 flex items-center gap-2"
                     >
-                      <Save className="w-4 h-4" /> Save
+                      <Save className="w-4 h-4" /> {t('dashboard', 'settingsText.save')}
                     </button>
                   </div>
                 </div>
@@ -697,12 +697,12 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                             <img src={`/api/proxy-image?url=${encodeURIComponent(post.imageUrl)}`} alt="Post preview" className="h-full w-full object-cover" />
                             <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
                               <span className="rounded bg-black/60 backdrop-blur-sm px-2 py-1 text-xs font-medium text-white shadow-sm">
-                                {post.type}
+                                {t('dashboard', `postTypes.${(post.type || '').toLowerCase().replace(/\s+/g, '_')}`) || post.type}
                               </span>
                               {post.mediaUrls && post.mediaUrls.length > 1 && (
                                 <span className="rounded bg-black/60 backdrop-blur-sm px-2 py-1 text-xs font-medium text-white shadow-sm flex items-center gap-1">
                                   <Instagram className="w-3 h-3" />
-                                  1 of {post.mediaUrls.length}
+                                  1 {t('dashboard', 'mediaCountOf')} {post.mediaUrls.length}
                                 </span>
                               )}
                             </div>
