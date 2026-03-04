@@ -675,9 +675,12 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                             </div>
                           </div>
                         )}
-                        <div className="text-sm text-gray-600 max-h-60 overflow-y-auto whitespace-pre-wrap pr-2 rounded-md bg-white border border-transparent hover:border-gray-100 transition-colors">
-                          {post.caption}
-                        </div>
+                        <textarea
+                          value={post.caption || ""}
+                          onChange={(e) => setPost({ ...post, caption: e.target.value })}
+                          className="w-full text-sm text-gray-800 min-h-[150px] max-h-60 overflow-y-auto whitespace-pre-wrap p-3 rounded-md bg-gray-50 border border-gray-200 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors resize-y focus:outline-none"
+                          placeholder="Текст поста из Instagram..."
+                        />
 
                         <button
                           onClick={handleAdaptAll}
