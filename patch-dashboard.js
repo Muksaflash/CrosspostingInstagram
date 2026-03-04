@@ -1,0 +1,88 @@
+const fs = require('fs');
+const path = require('path');
+
+const dashboardPath = path.join(__dirname, 'src', 'components', 'Dashboard.tsx');
+let content = fs.readFileSync(dashboardPath, 'utf8');
+
+const replacements = [
+  ['import { signOut } from "next-auth/react";', 'import { signOut } from "next-auth/react";\nimport { useLanguage } from "@/components/LanguageProvider";'],
+  ['function QuotaWidget({ quotas, fetchQuotas, loading }: any) {', 'function QuotaWidget({ quotas, fetchQuotas, loading }: any) {\n  const { t } = useLanguage();'],
+  ['Лимиты и Квоты', "{t('dashboard', 'limitsAndQuotas')}"],
+  ['Запросов к Instagram за месячный период', "{t('dashboard', 'requestsPerMonth')}"],
+  ['>Обновится {quotas.instagramRefreshDate}<', ">{t('dashboard', 'willUpdate')} {quotas.instagramRefreshDate}<"],
+  ['{quotas.instagram.limit - quotas.instagram.remaining} из {quotas.instagram.limit}', "{quotas.instagram.limit - quotas.instagram.remaining} {t('dashboard', 'outOf')} {quotas.instagram.limit}"],
+  ['<p className="text-gray-500">Нет данных</p>', '<p className="text-gray-500">{t(\'dashboard\', \'noData\')}</p>'],
+  ['Кредиты на слайдшоу за месячный период', "{t('dashboard', 'slideshowCredits')}"],
+  ['План: {quotas.slideshow.plan}', "{t('dashboard', 'plan')}: {quotas.slideshow.plan}"],
+  ['Кредитов израсходовано:', "{t('dashboard', 'creditsUsed')}:"],
+  ['({quotas.slideshow.credits_usage} из {quotas.slideshow.credits_limit})', "({quotas.slideshow.credits_usage} {t('dashboard', 'outOf')} {quotas.slideshow.credits_limit})"],
+  ['>Обновится {quotas.slideshowRefreshDate}<', ">{t('dashboard', 'willUpdate')} {quotas.slideshowRefreshDate}<"],
+  ['Дата регистрации не задана в настройках', "{t('dashboard', 'regDateNotSet')}"],
+  ['export default function Dashboard({ initialNetworks, initialPost }: { initialNetworks: any[]; initialPost?: any }) {', "export default function Dashboard({ initialNetworks, initialPost }: { initialNetworks: any[]; initialPost?: any }) {\n  const { t } = useLanguage();"],
+  ['Dashboard\n          </button>', "{t('dashboard', 'tabs.dashboard')}\n          </button>"],
+  ['Settings\n          </button>', "{t('dashboard', 'tabs.settings')}\n          </button>"],
+  ['<LogOut className="w-4 h-4" /> Выйти', '<LogOut className="w-4 h-4" /> {t(\'dashboard\', \'logout\')}'],
+  ['API Integrations', "{t('dashboard', 'settingsText.title')}"],
+  ['Configure your personal API keys for the automation to work.', "{t('dashboard', 'settingsText.desc')}"],
+  ['<Save className="w-4 h-4" /> Save\n                    </button>', "<Save className=\"w-4 h-4\" /> {t('dashboard', 'settingsText.save')}\n                    </button>"],
+  ['<Save className="w-4 h-4" /> Save Prompt', "<Save className=\"w-4 h-4\" /> {t('dashboard', 'settingsText.savePrompt')}"],
+  ['Эта инструкция будет отправляться нейросети ПЕРЕД инструкцией конкретной платформы.', "{t('dashboard', 'settingsText.mainPromptDesc')}"],
+  ['Source Post\n                  </h2>', "{t('dashboard', 'sourcePost')}\n                  </h2>"],
+  ['> {loading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin inline" /> : "Fetch Latest"}\n', "> {loading ? <RefreshCw className=\"mr-2 h-4 w-4 animate-spin inline\" /> : t('dashboard', 'fetchLatest')}\n"],
+  ['Получить пост по ссылке', "{t('dashboard', 'fetchByLink')}"],
+  ['Время публикации (оставьте пустым для публикации сейчас)', "{t('dashboard', 'scheduleDate')}"],
+  ['placeholder="Текст поста из Instagram..."', 'placeholder={t(\'dashboard\', \'postTextPlaceholder\')}'],
+  ['Adapt for Networks', "{t('dashboard', 'adaptBtn')}"],
+  ['>No post loaded<', ">{t('dashboard', 'noPostLoaded')}<"],
+  ['Автоматическая выкладка', "{t('dashboard', 'autoPost.title')}"],
+  ['Каждый час проверяет новые посты в Instagram и публикует во включенные сети.', "{t('dashboard', 'autoPost.desc')}"],
+  ['Ссылка для Pinterest', "{t('dashboard', 'pinterestLink.title')}"],
+  ['Эта ссылка будет добавлена ко всем пинам Pinterest (если у аккаунта нет своей ссылки).', "{t('dashboard', 'pinterestLink.desc')}"],
+  ['<Save className="w-3.5 h-3.5" />\n                      Сохранить', "<Save className=\"w-3.5 h-3.5\" />\n                      {t('dashboard', 'pinterestLink.save')}"],
+  ['<h2 className="text-xl font-semibold">Social Networks</h2>', '<h2 className="text-xl font-semibold">{t(\'dashboard\', \'socialNetworks.title\')}</h2>'],
+  ['<Plus className="h-4 w-4" /> Add Network', '<Plus className="h-4 w-4" /> {t(\'dashboard\', \'socialNetworks.addNetwork\')}'],
+  ['Publish All\n                    </button>', "{t('dashboard', 'socialNetworks.publishAll')}\n                    </button>"],
+  ['title="Настройки соцсети"', "title={t('dashboard', 'networkCard.settings')}"],
+  ['Доп. настройки', "{t('dashboard', 'networkCard.advancedSettings')}"],
+  ['Удалить соцсеть', "{t('dashboard', 'networkCard.deleteNetwork')}"],
+  ['Переписать текст', "{t('dashboard', 'networkCard.rewrite')}"],
+  ['Опубликовать', "{t('dashboard', 'networkCard.publish')}"],
+  ['{net.status === \'success\' && (\n                              <p className="text-green-600 text-xs mt-1 font-medium bg-green-50 p-2 rounded border border-green-100">Успешно опубликовано!</p>\n                            )}', '{net.status === \'success\' && (\n                              <p className="text-green-600 text-xs mt-1 font-medium bg-green-50 p-2 rounded border border-green-100">{t(\'dashboard\', \'networkCard.success\')}</p>\n                            )}'],
+  ['>Системный Промпт (Инструкция AI)<', ">{t('dashboard', 'networkCard.promptLabel')}<"],
+  ['placeholder="Инструкция для нейросети по переписыванию поста..."', "placeholder={t('dashboard', 'networkCard.promptPlaceholder')}"],
+  ['>Заголовок<', ">{t('dashboard', 'networkCard.titleLabel')}<"],
+  ['placeholder="Заголовок для поста..."', "placeholder={t('dashboard', 'networkCard.titlePlaceholder')}"],
+  ['>Адаптированный Текст<', ">{t('dashboard', 'networkCard.adaptedTextLabel')}<"],
+  ['placeholder="Здесь появится переписанный текст..."', "placeholder={t('dashboard', 'networkCard.adaptedTextPlaceholder')}"],
+  ['Connect Social Network', "{t('dashboard', 'modals.addNetworkTitle')}"],
+  ['Select an account from your PostMyPost project to add to automation.', "{t('dashboard', 'modals.addNetworkDesc')}"],
+  ['No accounts found. Make sure your PostMyPost Token and Project ID are correct in Settings.', "{t('dashboard', 'modals.noAccounts')}"],
+  ['Platform:', "{t('dashboard', 'modals.platform')}:"],
+  ['{isAdded ? \'Added\' : \'Add\'}', "{isAdded ? t('dashboard', 'modals.added') : t('dashboard', 'modals.add')}"],
+  ['Настройки публикации', "{t('dashboard', 'modals.advSettingsTitle')}"],
+  ['Фильтр контента (Reels vs Картинки)', "{t('dashboard', 'modals.contentFilter')}"],
+  ['Без фильтра (Публиковать всё)', "{t('dashboard', 'modals.noFilter')}"],
+  ['Только Reels (Одиночные видео)', "{t('dashboard', 'modals.onlyReels')}"],
+  ['Исключать Reels (Фото / Карусели)', "{t('dashboard', 'modals.excludeReels')}"],
+  ['Полезно для разделения аккаунтов Pinterest / VK на Reels и Обычные посты.', "{t('dashboard', 'modals.filterDesc')}"],
+  ['Режим Слайдшоу', "{t('dashboard', 'modals.slideshowMode')}"],
+  ['Авто (Зависит от соцсети)', "{t('dashboard', 'modals.slideshowAuto')}"],
+  ['Всегда объединять фото в видео (Слайдшоу)', "{t('dashboard', 'modals.slideshowAlways')}"],
+  ['Никогда (Оставлять карусель)', "{t('dashboard', 'modals.slideshowNever')}"],
+  ['Авто = Reddit/TikTok/Pinterest_reels конвертируются автоматически, остальные — каруселью.', "{t('dashboard', 'modals.slideshowDesc')}"],
+  ['Тип публикации (Publication Type)', "{t('dashboard', 'modals.pubType')}"],
+  ['Обычный пост (1)', "{t('dashboard', 'modals.pubTypeNormal')}"],
+  ['Shorts / Reels на YouTube/Rutube (4)', "{t('dashboard', 'modals.pubTypeShorts')}"],
+  ['Специфичные опции TikTok', "{t('dashboard', 'modals.tiktokOptions')}"],
+  ['Privacy Status<', "{t('dashboard', 'modals.tiktokPrivacy')}<"],
+  ['Ссылка для ПИНА (Pinterest)', "{t('dashboard', 'modals.pinterestPinLink')}"],
+  ['Добавляется как link к публикации Pinterest.', "{t('dashboard', 'modals.pinterestPinLinkDesc')}"],
+  ['Сохранить и закрыть', "{t('dashboard', 'modals.saveAndClose')}"]
+];
+
+replacements.forEach(([search, replace]) => {
+  content = content.replace(search, replace);
+});
+
+fs.writeFileSync(dashboardPath, content, 'utf8');
+console.log('Patched Dashboard.tsx successfully');

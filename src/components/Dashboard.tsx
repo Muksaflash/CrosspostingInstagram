@@ -5,6 +5,7 @@ import { Instagram, Wand2, Send, RefreshCw, Settings, Search, Key, Save, LogOut,
 import { saveSocialNetwork, saveUserSetting, getUserSettings, getQuotas } from "@/app/actions";
 import Image from "next/image";
 import { signOut } from "next-auth/react";
+import { useLanguage } from "@/components/LanguageProvider";
 
 export interface PublishingSettings {
   slideshowMode?: 'auto' | 'always' | 'never';
@@ -41,6 +42,7 @@ interface InstagramPost {
 }
 
 function QuotaWidget({ quotas, fetchQuotas, loading }: any) {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
 
   if (!quotas || (!quotas.instagram && !quotas.slideshow)) return null;
@@ -53,7 +55,7 @@ function QuotaWidget({ quotas, fetchQuotas, loading }: any) {
       >
         <div className="flex items-center gap-4">
           <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
-            Лимиты и Квоты
+            {t('dashboard', 'limitsAndQuotas')}
           </h2>
           {!isOpen && (
             <div className="flex gap-3 text-xs font-medium text-gray-500">
@@ -94,16 +96,16 @@ function QuotaWidget({ quotas, fetchQuotas, loading }: any) {
             {/* Instagram */}
             <div className="border rounded-lg overflow-hidden">
               <div className="bg-[#2D5A40] text-white px-4 py-2 font-medium text-sm">
-                Запросов к Instagram за месячный период
+                {t('dashboard', 'requestsPerMonth')}
               </div>
               <div className="p-4 space-y-1 text-sm bg-gray-50 min-h-[100px]">
                 {quotas.instagram ? (
                   <>
-                    <p className="text-gray-900">{quotas.instagram.limit - quotas.instagram.remaining} из {quotas.instagram.limit}</p>
-                    {quotas.instagramRefreshDate && <p className="text-gray-600">Обновится {quotas.instagramRefreshDate}</p>}
+                    <p className="text-gray-900">{quotas.instagram.limit - quotas.instagram.remaining} {t('dashboard', 'outOf')} {quotas.instagram.limit}</p>
+                    {quotas.instagramRefreshDate && <p className="text-gray-600">{t('dashboard', 'willUpdate')} {quotas.instagramRefreshDate}</p>}
                   </>
                 ) : (
-                  <p className="text-gray-500">Нет данных</p>
+                  <p className="text-gray-500">{t('dashboard', 'noData')}</p>
                 )}
               </div>
             </div>
@@ -111,18 +113,18 @@ function QuotaWidget({ quotas, fetchQuotas, loading }: any) {
             {/* Slideshow */}
             <div className="border rounded-lg overflow-hidden">
               <div className="bg-[#2D5A40] text-white px-4 py-2 font-medium text-sm">
-                Кредиты на слайдшоу за месячный период
+                {t('dashboard', 'slideshowCredits')}
               </div>
               <div className="p-4 space-y-1 text-sm bg-gray-50 min-h-[100px]">
                 {quotas.slideshow ? (
                   <>
-                    <p className="text-gray-900">План: {quotas.slideshow.plan}</p>
+                    <p className="text-gray-900">{t('dashboard', 'plan')}: {quotas.slideshow.plan}</p>
                     <p className="text-gray-900">
-                      Кредитов израсходовано: {quotas.slideshow.credits_limit > 0 ? Math.round((quotas.slideshow.credits_usage / quotas.slideshow.credits_limit) * 100) : 0}%
-                      ({quotas.slideshow.credits_usage} из {quotas.slideshow.credits_limit})
+                      {t('dashboard', 'creditsUsed')}: {quotas.slideshow.credits_limit > 0 ? Math.round((quotas.slideshow.credits_usage / quotas.slideshow.credits_limit) * 100) : 0}%
+                      ({quotas.slideshow.credits_usage} {t('dashboard', 'outOf')} {quotas.slideshow.credits_limit})
                     </p>
-                    {quotas.slideshowRefreshDate && <p className="text-gray-600">Обновится {quotas.slideshowRefreshDate}</p>}
-                    {!quotas.slideshowRefreshDate && <p className="text-gray-400 text-xs">Дата регистрации не задана в настройках</p>}
+                    {quotas.slideshowRefreshDate && <p className="text-gray-600">{t('dashboard', 'willUpdate')} {quotas.slideshowRefreshDate}</p>}
+                    {!quotas.slideshowRefreshDate && <p className="text-gray-400 text-xs">{t('dashboard', 'regDateNotSet')}</p>}
                   </>
                 ) : (
                   <p className="text-gray-500">Нет данных</p>
@@ -137,6 +139,7 @@ function QuotaWidget({ quotas, fetchQuotas, loading }: any) {
 }
 
 export default function Dashboard({ initialNetworks, initialPost }: { initialNetworks: any[]; initialPost?: any }) {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'settings'>('dashboard');
 
   const [networks, setNetworks] = useState<SocialNetwork[]>(initialNetworks.length ? initialNetworks : [
@@ -517,15 +520,15 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
           onClick={() => signOut({ callbackUrl: '/' })}
           className="text-gray-500 hover:text-red-600 flex items-center gap-2 text-sm font-medium transition-colors"
         >
-          <LogOut className="w-4 h-4" /> Выйти
+          <LogOut className="w-4 h-4" /> {t('dashboard', 'logout')}
         </button>
       </div>
 
       {activeTab === 'settings' ? (
         <div className="max-w-2xl bg-white p-6 rounded-xl shadow-sm space-y-6">
           <div className="border-t pt-6">
-            <h2 className="text-xl font-bold">API Integrations</h2>
-            <p className="text-gray-500 text-sm">Configure your personal API keys for the automation to work.</p>
+            <h2 className="text-xl font-bold">{t('dashboard', 'settingsText.title')}</h2>
+            <p className="text-gray-500 text-sm">{t('dashboard', 'settingsText.desc')}</p>
           </div>
 
           {keysLoading ? (
@@ -545,7 +548,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                   { id: 'CLOUDINARY_REG_DATE', label: 'Cloudinary дата регистрации (ГГГГ-ММ-ДД)', placeholder: '2025-12-22' },
               ].map((field) => (
                 <div key={field.id} className="grid gap-2">
-                  <label className="text-sm font-medium">{field.label}</label>
+                  <label className="text-sm font-medium">{t('dashboard', `settingsText.fields.${field.id}.label`)}</label>
                   <div className="flex gap-2">
                     {field.type === 'select' ? (
                       <select
@@ -556,18 +559,18 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                         }}
                         className="flex-1 border p-2 rounded-md bg-white"
                       >
-                        <option value="gpt-5.2">gpt-5.2 (Рекомендуется)</option>
-                        <option value="gpt-5.2-thinking">gpt-5.2 thinking (Глубокий анализ)</option>
-                        <option value="gpt-5">gpt-5 (Быстрый)</option>
-                        <option value="gpt-5-mini">gpt-5 mini (Дешевый)</option>
-                        <option value="gpt-5-nano">gpt-5 nano (Самый дешевый)</option>
+                        <option value="gpt-5.2">{t('dashboard', 'settingsText.models.gpt-5.2')}</option>
+                        <option value="gpt-5.2-thinking">{t('dashboard', 'settingsText.models.gpt-5.2-thinking')}</option>
+                        <option value="gpt-5">{t('dashboard', 'settingsText.models.gpt-5')}</option>
+                        <option value="gpt-5-mini">{t('dashboard', 'settingsText.models.gpt-5-mini')}</option>
+                        <option value="gpt-5-nano">{t('dashboard', 'settingsText.models.gpt-5-nano')}</option>
                       </select>
                     ) : (
                       <input
                         type={field.id.includes('KEY') || field.id.includes('TOKEN') ? 'password' : 'text'}
                         value={apiKeys[field.id as keyof typeof apiKeys]}
                         onChange={(e) => setApiKeys({ ...apiKeys, [field.id]: e.target.value })}
-                        placeholder={field.placeholder}
+                        placeholder={t('dashboard', `settingsText.fields.${field.id}.placeholder`) || field.placeholder}
                         className="flex-1 border p-2 rounded-md"
                       />
                     )}
@@ -582,12 +585,12 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
               ))}
 
               <div className="grid gap-2 mt-4 pt-4 border-t">
-                <label className="text-sm font-medium">Основной Промпт (Main Prompt)</label>
+                <label className="text-sm font-medium">{t('dashboard', 'settingsText.mainPromptLabel')}</label>
                 <div className="flex gap-2 flex-col">
                   <textarea
                     value={apiKeys.MAIN_PROMPT}
                     onChange={(e) => setApiKeys({ ...apiKeys, MAIN_PROMPT: e.target.value })}
-                    placeholder="Инструкция маркетолога..."
+                    placeholder={t('dashboard', 'settingsText.mainPromptPlaceholder')}
                     className="flex-1 border p-3 rounded-md min-h-[100px] text-sm"
                   />
                   <div className="flex justify-end">
@@ -595,11 +598,11 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                       onClick={() => handleSaveKey('MAIN_PROMPT', apiKeys.MAIN_PROMPT)}
                       className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 flex items-center gap-2"
                     >
-                      <Save className="w-4 h-4" /> Save Prompt
+                      <Save className="w-4 h-4" /> {t('dashboard', 'settingsText.savePrompt')}
                     </button>
                   </div>
                 </div>
-                <p className="text-xs text-gray-500">Эта инструкция будет отправляться нейросети ПЕРЕД инструкцией конкретной платформы.</p>
+                <p className="text-xs text-gray-500">{t('dashboard', 'settingsText.mainPromptDesc')}</p>
               </div>
 
             </div>
@@ -630,7 +633,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
 
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 mb-1">
-                        Получить пост по ссылке
+                        {t('dashboard', 'fetchByLink')}
                       </label>
                       <div className="flex gap-2">
                         <input
@@ -653,7 +656,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                     {/* Schedule Date Input */}
                     <div className="pt-2 border-t">
                       <label className="block text-xs font-semibold text-gray-500 mb-1">
-                        Время публикации (оставьте пустым для публикации сейчас)
+                        {t('dashboard', 'scheduleDate')}
                       </label>
                       <input
                         type="datetime-local"
@@ -685,7 +688,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                           value={post.caption || ""}
                           onChange={(e) => setPost({ ...post, caption: e.target.value })}
                           className="w-full text-sm text-gray-800 min-h-[150px] max-h-60 overflow-y-auto whitespace-pre-wrap p-3 rounded-md bg-gray-50 border border-gray-200 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors resize-y focus:outline-none"
-                          placeholder="Текст поста из Instagram..."
+                          placeholder={t('dashboard', 'postTextPlaceholder')}
                         />
 
                         <button
@@ -693,12 +696,12 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                           className="w-full rounded-lg bg-purple-600 px-4 py-2 text-white hover:bg-purple-700 flex items-center justify-center gap-2"
                         >
                           <Wand2 className="h-4 w-4" />
-                          Adapt for Networks
+                          {t('dashboard', 'adaptBtn')}
                         </button>
                       </div>
                     ) : (
                       <div className="flex h-64 items-center justify-center rounded-lg bg-gray-50 border-2 border-dashed">
-                        <p className="text-gray-400 text-sm">No post loaded</p>
+                        <p className="text-gray-400 text-sm">{t('dashboard', 'noPostLoaded')}</p>
                       </div>
                     )}
                   </div>
@@ -710,9 +713,9 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                 {/* Auto-Posting Toggle Card */}
                 <div className="rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-5 shadow-sm flex items-center justify-between">
                   <div>
-                    <span className="font-semibold text-gray-800 text-lg">Автоматическая выкладка</span>
+                    <span className="font-semibold text-gray-800 text-lg">{t('dashboard', 'autoPost.title')}</span>
                     <p className="text-sm text-gray-600 mt-1">
-                      Каждый час проверяет новые посты в Instagram и публикует во включенные сети.
+                      {t('dashboard', 'autoPost.desc')}
                     </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer ml-4 min-w-max">
@@ -734,7 +737,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                 <div className="rounded-xl bg-gradient-to-r from-red-50 to-pink-50 border border-red-100 p-5 shadow-sm">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-lg">📌</span>
-                    <span className="font-semibold text-gray-800">Ссылка для Pinterest</span>
+                    <span className="font-semibold text-gray-800">{t('dashboard', 'pinterestLink.title')}</span>
                   </div>
                   <div className="flex gap-2">
                     <input
@@ -752,18 +755,18 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                       Сохранить
                     </button>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">Эта ссылка будет добавлена ко всем пинам Pinterest (если у аккаунта нет своей ссылки).</p>
+                  <p className="text-xs text-gray-500 mt-2">{t('dashboard', 'pinterestLink.desc')}</p>
                 </div>
 
                 <div className="rounded-xl bg-white p-6 shadow-sm">
                   <div className="mb-6 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <h2 className="text-xl font-semibold">Social Networks</h2>
+                      <h2 className="text-xl font-semibold">{t('dashboard', 'socialNetworks.title')}</h2>
                       <button
                         onClick={handleOpenAddNetworkModal}
                         className="flex items-center gap-1 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
                       >
-                        <Plus className="h-4 w-4" /> Add Network
+                        <Plus className="h-4 w-4" /> {t('dashboard', 'socialNetworks.addNetwork')}
                       </button>
                     </div>
                     <button
@@ -806,7 +809,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                               <button
                                 onClick={() => setExpandedSettingsIdx(expandedSettingsIdx === idx ? null : idx)}
                                 className="p-1 rounded-md text-gray-500 hover:bg-gray-100 transition-colors"
-                                title="Настройки соцсети"
+                                title={t('dashboard', 'networkCard.settings')}
                               >
                                 <Settings className="w-4 h-4" />
                               </button>
@@ -820,11 +823,11 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded flex items-center gap-2 transition-colors border-b border-gray-100 mb-1"
                                   >
                                     <Settings className="w-4 h-4" />
-                                    Доп. настройки
+                                    {t('dashboard', 'networkCard.advancedSettings')}
                                   </button>
                                   <button
                                     onClick={() => {
-                                      if (confirm(`Удалить соцсеть ${net.name}?`)) {
+                                      if (confirm(`{t('dashboard', 'networkCard.deleteNetwork')} ${net.name}?`)) {
                                         handleDeleteNetwork(idx);
                                         setExpandedSettingsIdx(null);
                                       }
@@ -849,7 +852,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                 className="flex items-center justify-center gap-2 bg-blue-100 text-blue-700 hover:bg-blue-200 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
                               >
                                 {net.status === 'rewriting' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                                Переписать текст
+                                {t('dashboard', 'networkCard.rewrite')}
                               </button>
                               <button
                                 onClick={() => handlePublishSingle(idx)}
@@ -857,7 +860,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                 className="flex items-center justify-center gap-2 bg-green-100 text-green-700 hover:bg-green-200 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
                               >
                                 {net.status === 'publishing' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                                Опубликовать
+                                {t('dashboard', 'networkCard.publish')}
                               </button>
                             </div>
                             {net.status === 'error' && (
@@ -868,7 +871,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                             )}
 
                             <div className="space-y-1">
-                              <label className="text-xs font-medium text-gray-600">Системный Промпт (Инструкция AI)</label>
+                              <label className="text-xs font-medium text-gray-600">{t('dashboard', 'networkCard.promptLabel')}</label>
                               <textarea
                                 value={net.prompt || ''}
                                 onChange={(e) => {
@@ -879,14 +882,14 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                 onBlur={() => {
                                   saveSocialNetwork(net._docId || net.accountId || net.name, networks[idx]);
                                 }}
-                                placeholder="Инструкция для нейросети по переписыванию поста..."
+                                placeholder={t('dashboard', 'networkCard.promptPlaceholder')}
                                 className="w-full rounded-md border border-gray-200 p-2 text-xs focus:border-blue-500 focus:outline-none min-h-[60px]"
                               />
                             </div>
 
                             <div className="space-y-3">
                               <div>
-                                <label className="text-xs font-medium text-gray-600">Заголовок</label>
+                                <label className="text-xs font-medium text-gray-600">{t('dashboard', 'networkCard.titleLabel')}</label>
                                 <input
                                   type="text"
                                   value={net.adaptedTitle || ''}
@@ -898,12 +901,12 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                   onBlur={() => {
                                     saveSocialNetwork(net._docId || net.accountId || net.name, networks[idx]);
                                   }}
-                                  placeholder="Заголовок для поста..."
+                                  placeholder={t('dashboard', 'networkCard.titlePlaceholder')}
                                   className="w-full mt-1 rounded-md border border-gray-200 p-2 text-sm focus:border-blue-500 focus:outline-none"
                                 />
                               </div>
                               <div>
-                                <label className="text-xs font-medium text-gray-600">Адаптированный Текст</label>
+                                <label className="text-xs font-medium text-gray-600">{t('dashboard', 'networkCard.adaptedTextLabel')}</label>
                                 <textarea
                                   value={net.adaptedText || ''}
                                   onChange={(e) => {
@@ -914,7 +917,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                   onBlur={() => {
                                     saveSocialNetwork(net._docId || net.accountId || net.name, networks[idx]);
                                   }}
-                                  placeholder="Здесь появится переписанный текст..."
+                                  placeholder={t('dashboard', 'networkCard.adaptedTextPlaceholder')}
                                   className="w-full mt-1 rounded-md border border-gray-200 p-2 text-sm focus:border-blue-500 focus:outline-none min-h-[100px]"
                                 />
                               </div>
@@ -940,8 +943,8 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
             >
               <X className="h-5 w-5" />
             </button>
-            <h2 className="text-xl font-bold mb-4">Connect Social Network</h2>
-            <p className="text-sm text-gray-500 mb-6">Select an account from your PostMyPost project to add to automation.</p>
+            <h2 className="text-xl font-bold mb-4">{t('dashboard', 'modals.addNetworkTitle')}</h2>
+            <p className="text-sm text-gray-500 mb-6">{t('dashboard', 'modals.addNetworkDesc')}</p>
 
             {loadingAccounts ? (
               <div className="flex justify-center p-8">
@@ -949,7 +952,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
               </div>
             ) : availableAccounts.length === 0 ? (
               <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-lg border border-dashed">
-                No accounts found. Make sure your PostMyPost Token and Project ID are correct in Settings.
+                {t('dashboard', 'modals.noAccounts')}
               </div>
             ) : (
               <div className="max-h-96 overflow-y-auto space-y-3">
@@ -960,7 +963,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                       <div>
                         <p className="font-medium text-gray-900">{acc.name || acc.platform}</p>
                         <p className="text-xs text-gray-500 flex gap-2">
-                          <span>Platform: <span className="capitalize">{acc.platform}</span></span>
+                          <span>{t('dashboard', 'modals.platform')}: <span className="capitalize">{acc.platform}</span></span>
                           <span>({acc.id})</span>
                         </p>
                       </div>
@@ -969,7 +972,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                         disabled={isAdded}
                         className={`px-4 py-1.5 rounded-md text-sm font-medium ${isAdded ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                       >
-                        {isAdded ? 'Added' : 'Add'}
+                        {isAdded ? t('dashboard', 'modals.added') : t('dashboard', 'modals.add')}
                       </button>
                     </div>
                   );
@@ -994,12 +997,12 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
             >
               <X className="h-5 w-5" />
             </button>
-            <h2 className="text-xl font-bold mb-2">Настройки публикации</h2>
+            <h2 className="text-xl font-bold mb-2">{t('dashboard', 'modals.advSettingsTitle')}</h2>
             <p className="text-sm text-gray-500 mb-6 font-medium bg-gray-50 p-2 rounded inline-block">{networks[advancedSettingsIdx].name}</p>
 
             <div className="space-y-5">
               <div className="space-y-2">
-                <label className="text-sm font-semibold block text-gray-700">Фильтр контента (Reels vs Картинки)</label>
+                <label className="text-sm font-semibold block text-gray-700">{t('dashboard', 'modals.contentFilter')}</label>
                 <select
                   className="w-full border rounded-md p-2 text-sm focus:border-blue-500 outline-none"
                   value={networks[advancedSettingsIdx].publishingSettings?.contentFilter || 'none'}
@@ -1011,15 +1014,15 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                     setNetworks(newNets);
                   }}
                 >
-                  <option value="none">Без фильтра (Публиковать всё)</option>
-                  <option value="only_reels">Только Reels (Одиночные видео)</option>
-                  <option value="exclude_reels">Исключать Reels (Фото / Карусели)</option>
+                  <option value="none">{t('dashboard', 'modals.noFilter')}</option>
+                  <option value="only_reels">{t('dashboard', 'modals.onlyReels')}</option>
+                  <option value="exclude_reels">{t('dashboard', 'modals.excludeReels')}</option>
                 </select>
-                <p className="text-xs text-gray-500">Полезно для разделения аккаунтов Pinterest / VK на Reels и Обычные посты.</p>
+                <p className="text-xs text-gray-500">{t('dashboard', 'modals.filterDesc')}</p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold block text-gray-700">Режим Слайдшоу</label>
+                <label className="text-sm font-semibold block text-gray-700">{t('dashboard', 'modals.slideshowMode')}</label>
                 <select
                   className="w-full border rounded-md p-2 text-sm focus:border-blue-500 outline-none"
                   value={networks[advancedSettingsIdx].publishingSettings?.slideshowMode || 'auto'}
@@ -1031,15 +1034,15 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                     setNetworks(newNets);
                   }}
                 >
-                  <option value="auto">Авто (Зависит от соцсети)</option>
-                  <option value="always">Всегда объединять фото в видео (Слайдшоу)</option>
-                  <option value="never">Никогда (Оставлять карусель)</option>
+                  <option value="auto">{t('dashboard', 'modals.slideshowAuto')}</option>
+                  <option value="always">{t('dashboard', 'modals.slideshowAlways')}</option>
+                  <option value="never">{t('dashboard', 'modals.slideshowNever')}</option>
                 </select>
-                <p className="text-xs text-gray-500">Авто = Reddit/TikTok/Pinterest_reels конвертируются автоматически, остальные — каруселью.</p>
+                <p className="text-xs text-gray-500">{t('dashboard', 'modals.slideshowDesc')}</p>
               </div>
 
               <div className="space-y-2 border-t pt-4">
-                <label className="text-sm font-semibold block text-gray-700">Тип публикации (Publication Type)</label>
+                <label className="text-sm font-semibold block text-gray-700">{t('dashboard', 'modals.pubType')}</label>
                 <select
                   className="w-full border rounded-md p-2 text-sm focus:border-blue-500 outline-none"
                   value={networks[advancedSettingsIdx].publishingSettings?.publicationType || 1}
@@ -1051,17 +1054,17 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                     setNetworks(newNets);
                   }}
                 >
-                  <option value="1">Обычный пост (1)</option>
-                  <option value="4">Shorts / Reels на YouTube/Rutube (4)</option>
+                  <option value="1">{t('dashboard', 'modals.pubTypeNormal')}</option>
+                  <option value="4">{t('dashboard', 'modals.pubTypeShorts')}</option>
                 </select>
               </div>
 
               {networks[advancedSettingsIdx].platform?.toLowerCase().includes('tiktok') && (
                 <div className="space-y-3 border-t pt-4 bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-sm font-semibold text-gray-900">Специфичные опции TikTok</h3>
+                  <h3 className="text-sm font-semibold text-gray-900">{t('dashboard', 'modals.tiktokOptions')}</h3>
 
                   <div className="flex items-center justify-between">
-                    <label className="text-sm text-gray-700">Privacy Status</label>
+                    <label className="text-sm text-gray-700">{t('dashboard', 'modals.tiktokPrivacy')}</label>
                     <select
                       className="border rounded px-2 py-1 text-sm bg-white"
                       value={networks[advancedSettingsIdx].publishingSettings?.tiktokPrivacyStatus || 1}
@@ -1101,7 +1104,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
 
               {networks[advancedSettingsIdx].platform?.toLowerCase().includes('pinterest') && (
                 <div className="space-y-2 border-t pt-4">
-                  <label className="text-sm font-semibold block text-gray-700">Ссылка для ПИНА (Pinterest)</label>
+                  <label className="text-sm font-semibold block text-gray-700">{t('dashboard', 'modals.pinterestPinLink')}</label>
                   <input
                     type="url"
                     placeholder="https://test.com"
@@ -1115,7 +1118,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                       setNetworks(newNets);
                     }}
                   />
-                  <p className="text-xs text-gray-500">Добавляется как link к публикации Pinterest.</p>
+                  <p className="text-xs text-gray-500">{t('dashboard', 'modals.pinterestPinLinkDesc')}</p>
                 </div>
               )}
             </div>
@@ -1129,7 +1132,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                 }}
                 className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
               >
-                Сохранить и закрыть
+                {t('dashboard', 'modals.saveAndClose')}
               </button>
             </div>
           </div>
