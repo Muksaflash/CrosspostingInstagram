@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { firestore } from "@/lib/firebase-admin";
+import { safeCompare } from "@/lib/security";
 import { cleanupOldCloudinaryAssets } from "@/lib/cloudinary";
 
 export const maxDuration = 300; // Allow 5 mins for cron execution if on Vercel Pro
@@ -11,7 +12,7 @@ export async function GET(req: Request) {
     const secret = url.searchParams.get("secret");
 
     // Secure the endpoint so only we can trigger it
-    if (secret !== process.env.CRON_SECRET) {
+    if (!safeCompare(secret, process.env.CRON_SECRET)) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
