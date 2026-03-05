@@ -148,15 +148,15 @@ throw new Error('PostMyPost Upload Timeout');
 }
 
 export async function uploadMediaUrlsToPostMyPost(urls: string[], token: string, projectId: number): Promise<string[]> {
-  const fileIds: string[] = [];
-  for (const url of urls) {
-    if (!url) continue;
-    const isVideo = url.toLowerCase().split('?')[0].match(/\.(mp4|mov|avi|webm)$/);
-    const fileName = `media_${Date.now()}${isVideo ? '.mp4' : '.jpg'}`;
-    const fileId = await uploadMediaToPostMyPost({ url, fileName }, token, projectId);
-    fileIds.push(fileId);
-  }
-  return fileIds;
+  const uploadPromises = urls
+    .filter(url => !!url)
+    .map((url, index) => {
+      const isVideo = url.toLowerCase().split('?')[0].match(/\.(mp4|mov|avi|webm)$/);
+      const fileName = `media_${Date.now()}_${index}${isVideo ? '.mp4' : '.jpg'}`;
+      return uploadMediaToPostMyPost({ url, fileName }, token, projectId);
+    });
+
+  return await Promise.all(uploadPromises);
 }
 
 export async function createPublication(params: any, token: string): Promise<any> {

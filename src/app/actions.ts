@@ -248,13 +248,9 @@ export async function publishPost(mediaUrls: string[], caption: string, accounts
   const token = settings?.POSTMYPOST_TOKEN;
   if (!token) throw new Error("POSTMYPOST_TOKEN not configured in settings");
 
-  const { uploadMediaToPostMyPost, createPublication } = await import("@/lib/postmypost");
+  const { uploadMediaUrlsToPostMyPost, createPublication } = await import("@/lib/postmypost");
   
-  const fileIds = [];
-  for (const url of mediaUrls) {
-    const fileId = await uploadMediaToPostMyPost({ url }, token, 320499);
-     fileIds.push(fileId);
-  }
+  const fileIds = await uploadMediaUrlsToPostMyPost(mediaUrls, token, 320499);
 
   // GAS used publication_status: 5 (Published?)
   const params = {
