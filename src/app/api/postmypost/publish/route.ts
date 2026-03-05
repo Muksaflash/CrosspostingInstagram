@@ -122,8 +122,6 @@ export async function POST(req: Request) {
       details: details
     };
 
-    console.log("Publishing payload:", JSON.stringify(payload, null, 2));
-
     const pubRes = await createPublication(payload, token);
     return NextResponse.json(pubRes);
 

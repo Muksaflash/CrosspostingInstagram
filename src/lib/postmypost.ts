@@ -51,9 +51,7 @@ const uploadId = initData.id;
 const uploadUrl = initData.action;
 const fields = initData.fields;
 
-  console.log(`[PMP Upload] Init response:`, JSON.stringify(initData, null, 2));
   console.log(`[PMP Upload] Init successful. Upload ID: ${uploadId}, URL: ${uploadUrl}`);
-  console.log(`[PMP Upload] Fields:`, JSON.stringify(fields, null, 2));
 
 // 2. Upload to S3
 const formData = new FormData();
