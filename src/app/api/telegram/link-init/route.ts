@@ -1,67 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { firestore } from "@/lib/firebase-admin";
 import { v4 as uuidv4 } from "uuid";
-
-// Validate Telegram initData via HMAC SHA-256 using Web Crypto API for Edge compatibility
-export async function validateTelegramData(initData: string, botToken: string): Promise<boolean> {
-  try {
-    const urlParams = new URLSearchParams(initData);
-    const hash = urlParams.get("hash");
-    
-    if (!hash) return false;
-    
-    // Remove hash from the string to check 
-    urlParams.delete("hash");
-    
-    // Sort keys alphabetically
-    const keys = Array.from(urlParams.keys()).sort();
-    
-    // Compile data-check-string
-    const dataCheckString = keys
-      .map(key => `${key}=${urlParams.get(key)}`)
-      .join("\n");
-      
-    const encoder = new TextEncoder();
-    
-    // Create Secret Key: HMAC_SHA256(botToken, "WebAppData")
-    const secretKeyMaterial = await crypto.subtle.importKey(
-      "raw",
-      encoder.encode("WebAppData"),
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"]
-    );
-    const secretKeyBuffer = await crypto.subtle.sign(
-      "HMAC",
-      secretKeyMaterial,
-      encoder.encode(botToken)
-    );
-
-    // Calculate final hash
-    const finalKeyMaterial = await crypto.subtle.importKey(
-      "raw",
-      secretKeyBuffer,
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"]
-    );
-    const calculatedHashBuffer = await crypto.subtle.sign(
-      "HMAC",
-      finalKeyMaterial,
-      encoder.encode(dataCheckString)
-    );
-    
-    // Convert ArrayBuffer to Hex String
-    const calculatedHash = Array.from(new Uint8Array(calculatedHashBuffer))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-      
-    return calculatedHash === hash;
-  } catch (error) {
-    console.error("Error validating Telegram data:", error);
-    return false;
-  }
-}
+import { validateTelegramData } from "@/lib/telegram";
 
 export async function POST(req: NextRequest) {
   try {
