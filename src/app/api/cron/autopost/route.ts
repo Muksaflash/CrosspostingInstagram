@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { firestore } from "@/lib/firebase-admin";
+import { safeCompare } from "@/lib/security";
 import { getRecentInstagramPosts } from "@/lib/instagram";
 import { adaptText } from "@/lib/openai";
 import { uploadMediaUrlsToPostMyPost, createPublication } from "@/lib/postmypost";
@@ -15,7 +16,7 @@ export async function GET(req: Request) {
     const secret = url.searchParams.get("secret");
 
     // Secure the endpoint so only we can trigger it
-    if (secret !== process.env.CRON_SECRET) {
+    if (!safeCompare(secret, process.env.CRON_SECRET)) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
