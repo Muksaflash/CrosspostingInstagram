@@ -14,10 +14,6 @@ export async function adaptText(baseText: string, prompt: string, mainPrompt: st
   const combinedPrompt = mainPrompt ? `${mainPrompt}\n\n${prompt}` : prompt;
   const userContent = `Задача:\n${combinedPrompt}\n\nИсходный текст поста:\n"""${baseText}"""`;
 
-  console.log("--- OUTGOING OPENAI PROMPT ---");
-  console.log(userContent);
-  console.log("------------------------------");
-
   const messages = [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userContent }
@@ -40,16 +36,6 @@ export async function adaptText(baseText: string, prompt: string, mainPrompt: st
   }
 
   console.log(`[OpenAI Request] Adapt Text using model: ${payload.model}`, isThinking ? '(with reasoning_effort: high)' : '');
-
-  try {
-    const fs = await import('fs');
-    const path = await import('path');
-    const logPath = path.join(process.cwd(), 'api-logs.txt');
-    const logEntry = `\n[${new Date().toISOString()}] Model: ${payload.model} ${isThinking ? '(thinking)' : ''}\nPayload: ${JSON.stringify(payload, null, 2)}\n`;
-    fs.appendFileSync(logPath, logEntry);
-  } catch (e) {
-    console.error("Failed to write log file:", e);
-  }
 
   const res = await fetch(API_URL, {
     method: 'POST',
