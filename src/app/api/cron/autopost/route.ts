@@ -20,6 +20,27 @@ export async function GET(req: Request) {
     }
 
     const usersSnapshot = await firestore.collection("users").get();
+
+    // Optimization: Fetch all settings at once to avoid N+1 queries
+    const allSettingsSnapshot = await firestore.collectionGroup("settings").get();
+    const settingsByEmail: Record<string, Record<string, string>> = {};
+
+    allSettingsSnapshot.docs.forEach(doc => {
+      // The path is users/{email}/settings/{settingId}
+      // doc.ref.parent is the 'settings' collection
+      // doc.ref.parent.parent is the user document
+      const userDocRef = doc.ref.parent.parent;
+      if (userDocRef && userDocRef.parent.id === "users") {
+        const email = userDocRef.id;
+        if (email && email.includes('@')) {
+          if (!settingsByEmail[email]) {
+            settingsByEmail[email] = {};
+          }
+          settingsByEmail[email][doc.id] = doc.data().value;
+        }
+      }
+    });
+
     let totalProcessed = 0;
     let totalPublished = 0;
     const processedEmails = new Set<string>();
@@ -36,13 +57,8 @@ export async function GET(req: Request) {
       if (processedEmails.has(email)) continue; // Avoid processing same user twice
       processedEmails.add(email);
 
-      // Settings are stored at users/{email}/settings/...
-      const settingsRef = firestore.collection("users").doc(email).collection("settings");
-      const settingsSnapshot = await settingsRef.get();
-      const settings: Record<string, string> = {};
-      settingsSnapshot.forEach(doc => {
-        settings[doc.id] = doc.data().value;
-      });
+      // Settings are retrieved from the pre-fetched map
+      const settings = settingsByEmail[email] || {};
 
       // Check if auto-posting is actually enabled for this user
       const autoPostEnabledAtStr = settings["AUTO_POST_ENABLED_AT"];
