@@ -233,7 +233,6 @@ export async function cleanupOldCloudinaryAssets(conf: CloudinaryConfig, maxAgeH
         listUrl += `&next_cursor=${nextCursor}`;
       }
 
-      console.log(`Cloudinary: Fetching ${resourceType}s from ${listUrl}`);
       const listRes = await fetch(listUrl, { method: 'GET', headers });
       if (!listRes.ok) {
         const errText = await listRes.text();
@@ -244,7 +243,6 @@ export async function cleanupOldCloudinaryAssets(conf: CloudinaryConfig, maxAgeH
       const listData = await listRes.json();
       const resources = listData.resources || [];
       nextCursor = listData.next_cursor;
-      console.log(`Cloudinary: Found ${resources.length} ${resourceType}(s)`);
 
       // 2. Filter old resources
       const now = Date.now();
@@ -254,11 +252,9 @@ export async function cleanupOldCloudinaryAssets(conf: CloudinaryConfig, maxAgeH
         .filter((r: any) => {
           const createdAt = new Date(r.created_at).getTime();
           const isOld = (now - createdAt) > maxAgeMs;
-          console.log(`  Resource ${r.public_id}: created=${r.created_at}, age=${Math.round((now - createdAt) / 3600000)}h, old=${isOld}`);
           return isOld;
         })
         .map((r: any) => r.public_id);
-      console.log(`Cloudinary: ${oldPublicIds.length} ${resourceType}(s) older than ${maxAgeHours}h to delete`);
 
       // 3. Delete in batches (Admin API allows up to 100 per request)
       const batchSize = 100;
