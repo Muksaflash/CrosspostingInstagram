@@ -250,11 +250,15 @@ export async function publishPost(mediaUrls: string[], caption: string, accounts
 
   const { uploadMediaUrlsToPostMyPost, createPublication } = await import("@/lib/postmypost");
   
-  const fileIds = await uploadMediaUrlsToPostMyPost(mediaUrls, token, 320499);
+  const projectIdStr = settings?.POSTMYPOST_PROJECT_ID;
+  if (!projectIdStr) throw new Error("POSTMYPOST_PROJECT_ID not configured in settings");
+  const projectId = parseInt(projectIdStr, 10);
+
+  const fileIds = await uploadMediaUrlsToPostMyPost(mediaUrls, token, projectId);
 
   // GAS used publication_status: 5 (Published?)
   const params = {
-    project_id: 320499, 
+    project_id: projectId, 
     account_ids: accounts,
     content: caption,
     file_ids: fileIds,

@@ -1,6 +1,6 @@
 
 import fs from 'fs';
-import { uploadMediaUrlsToPostMyPost } from './src/lib/postmypost.ts';
+import { uploadMediaUrlsToPostMyPost } from './src/lib/postmypost';
 
 /**
  * РУКОВОДСТВО ПО ЗАПУСКУ:
@@ -25,7 +25,8 @@ async function runTest() {
     process.exit(1);
   }
 
-  const projectId = 320499; // ID проекта из кода
+  // 2. Используем указанный проект
+  const projectId = 333024;
   const mediaUrls = [
     'https://picsum.photos/seed/1/800/600',
     'https://picsum.photos/seed/2/800/600',

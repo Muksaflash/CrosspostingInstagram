@@ -3,7 +3,7 @@ import { FirestoreAdapter } from "@auth/firebase-adapter";
 import { firestore } from "@/lib/firebase-admin";
 import { authConfig } from "./auth.config";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { validateTelegramData } from "./app/api/telegram/link-init/route";
+import { validateTelegramData } from "@/lib/telegram";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
