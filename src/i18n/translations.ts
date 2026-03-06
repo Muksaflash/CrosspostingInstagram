@@ -20,6 +20,10 @@ export const translations = {
       settingsText: {
         title: "API Integrations",
         desc: "Configure your personal API keys for the automation to work.",
+        tabs: {
+          general: "General",
+          prompts: "Prompts"
+        },
         save: "Save",
         savePrompt: "Save Prompt",
         mainPromptDesc: "This instruction will be sent to the neural network BEFORE the platform-specific instruction.",
@@ -43,7 +47,10 @@ export const translations = {
           "gpt-5-nano": "gpt-5 nano (Cheapest)"
         },
         mainPromptLabel: "Main Prompt",
-        mainPromptPlaceholder: "Marketer instruction..."
+        mainPromptPlaceholder: "Marketer instruction...",
+        promptsTabDesc: "Configure your personal default prompts for each platform. These will override system defaults.",
+        platformPromptLabel: "Default prompt for ",
+        platformPromptPlaceholder: "Enter custom default prompt for this platform..."
       },
       sourcePost: "Source Post",
       fetchLatest: "Fetch Latest",
@@ -89,6 +96,9 @@ export const translations = {
         adaptedTextPlaceholder: "Rewritten text will appear here...",
         settings: "Settings",
         advancedSettings: "Advanced settings",
+        suggestPrompt: "Suggest prompt",
+        suggestPromptConfirm: "Are you sure you want to replace the current prompt for this network?",
+        suggestPromptError: "Could not identify the social network by name. Please ensure the name is correct.",
         deleteNetwork: "Delete network"
       },
       modals: {
@@ -150,6 +160,10 @@ export const translations = {
       settingsText: {
         title: "API Интеграции",
         desc: "Настройте персональные API ключи для работы автоматизации.",
+        tabs: {
+          general: "Основные",
+          prompts: "Промпты"
+        },
         save: "Сохранить",
         savePrompt: "Сохранить Промпт",
         mainPromptDesc: "Эта инструкция будет отправляться нейросети ПЕРЕД инструкцией конкретной платформы.",
@@ -173,7 +187,10 @@ export const translations = {
           "gpt-5-nano": "gpt-5 nano (Самый дешевый)"
         },
         mainPromptLabel: "Основной Промпт (Main Prompt)",
-        mainPromptPlaceholder: "Инструкция маркетолога..."
+        mainPromptPlaceholder: "Инструкция маркетолога...",
+        promptsTabDesc: "Настройте свои персональные промпты по умолчанию для каждой платформы. Они будут использоваться вместо системных.",
+        platformPromptLabel: "Промпт по умолчанию для ",
+        platformPromptPlaceholder: "Введите свой дефолтный промпт для этой платформы..."
       },
       sourcePost: "Исходный пост",
       fetchLatest: "Получить последний",
@@ -219,6 +236,9 @@ export const translations = {
         adaptedTextPlaceholder: "Здесь появится переписанный текст...",
         settings: "Настройки",
         advancedSettings: "Доп. настройки",
+        suggestPrompt: "Предложить промпт",
+        suggestPromptConfirm: "Вы уверены, что хотите заменить текущий промпт для этой соцсети?",
+        suggestPromptError: "Не удалось определить соцсеть по названию. Убедитесь, что название корректно.",
         deleteNetwork: "Удалить соцсеть"
       },
       modals: {
