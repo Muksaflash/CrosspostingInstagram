@@ -15,7 +15,7 @@ export default function SignIn() {
         >
           <button 
             type="submit"
-            className="w-full rounded-md bg-black px-4 py-2 text-white transition hover:bg-gray-800"
+            className="w-full rounded-md bg-black dark:bg-white px-4 py-2 text-white dark:text-black transition hover:bg-gray-800 dark:hover:bg-gray-200"
           >
             Sign in with Google
           </button>
