@@ -16,8 +16,8 @@ registerLocale("ru", ruLocale);
 registerLocale("en", enLocale);
 
 export interface PublishingSettings {
-  slideshowMode?: 'auto' | 'always' | 'never';
-  contentFilter?: 'none' | 'only_reels' | 'exclude_reels';
+  slideshowMode?: 'auto' | 'always' | 'never' | string[];
+  contentFilter?: 'none' | 'only_reels' | 'exclude_reels' | string[];
   publicationType?: number;
   tiktokPrivacyStatus?: number;
   tiktokComment?: boolean;
@@ -1026,41 +1026,116 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
             <div className="space-y-5">
               <div className="space-y-2">
                 <label className="text-sm font-semibold block text-gray-700">{t('dashboard', 'modals.contentFilter')}</label>
-                <select
-                  className="w-full border rounded-md p-2 text-sm focus:border-blue-500 outline-none"
-                  value={networks[advancedSettingsIdx].publishingSettings?.contentFilter || 'none'}
-                  onChange={(e) => {
-                    const newNets = [...networks];
-                    const st = newNets[advancedSettingsIdx].publishingSettings || {};
-                    st.contentFilter = e.target.value as any;
-                    newNets[advancedSettingsIdx].publishingSettings = st;
-                    setNetworks(newNets);
-                  }}
-                >
-                  <option value="none">{t('dashboard', 'modals.noFilter')}</option>
-                  <option value="only_reels">{t('dashboard', 'modals.onlyReels')}</option>
-                  <option value="exclude_reels">{t('dashboard', 'modals.excludeReels')}</option>
-                </select>
+                <div className="flex flex-col gap-2">
+                  {[
+                    { id: 'single_image', label: t('dashboard', 'modals.filterSingleImage') },
+                    { id: 'single_video', label: t('dashboard', 'modals.filterSingleVideo') },
+                    { id: 'carousel', label: t('dashboard', 'modals.filterCarousel') },
+                    { id: 'mixed_carousel', label: t('dashboard', 'modals.filterMixedCarousel') }
+                  ].map(option => {
+                    let currentFilters = networks[advancedSettingsIdx].publishingSettings?.contentFilter;
+                    // Migrate legacy values to array
+                    if (!Array.isArray(currentFilters)) {
+                      if (currentFilters === 'only_reels') currentFilters = ['single_video'];
+                      else if (currentFilters === 'exclude_reels') currentFilters = ['single_image', 'carousel', 'mixed_carousel'];
+                      else currentFilters = ['single_image', 'single_video', 'carousel', 'mixed_carousel']; // 'none' or undefined
+                    }
+                    const isChecked = currentFilters.includes(option.id);
+                    return (
+                      <label key={option.id} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            const newNets = [...networks];
+                            const st = newNets[advancedSettingsIdx].publishingSettings || {};
+                            let filters = [...(currentFilters as string[])];
+                            if (e.target.checked) {
+                              filters.push(option.id);
+                            } else {
+                              filters = filters.filter(f => f !== option.id);
+                            }
+                            st.contentFilter = filters;
+                            newNets[advancedSettingsIdx].publishingSettings = st;
+                            setNetworks(newNets);
+                          }}
+                          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">{option.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
                 <p className="text-xs text-gray-500">{t('dashboard', 'modals.filterDesc')}</p>
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold block text-gray-700">{t('dashboard', 'modals.slideshowMode')}</label>
-                <select
-                  className="w-full border rounded-md p-2 text-sm focus:border-blue-500 outline-none"
-                  value={networks[advancedSettingsIdx].publishingSettings?.slideshowMode || 'auto'}
-                  onChange={(e) => {
-                    const newNets = [...networks];
-                    const st = newNets[advancedSettingsIdx].publishingSettings || {};
-                    st.slideshowMode = e.target.value as any;
-                    newNets[advancedSettingsIdx].publishingSettings = st;
-                    setNetworks(newNets);
-                  }}
-                >
-                  <option value="auto">{t('dashboard', 'modals.slideshowAuto')}</option>
-                  <option value="always">{t('dashboard', 'modals.slideshowAlways')}</option>
-                  <option value="never">{t('dashboard', 'modals.slideshowNever')}</option>
-                </select>
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer mb-2">
+                    <input
+                      type="checkbox"
+                      checked={
+                        !Array.isArray(networks[advancedSettingsIdx].publishingSettings?.slideshowMode) &&
+                        networks[advancedSettingsIdx].publishingSettings?.slideshowMode !== 'never' &&
+                        networks[advancedSettingsIdx].publishingSettings?.slideshowMode !== 'always'
+                      }
+                      onChange={(e) => {
+                        const newNets = [...networks];
+                        const st = newNets[advancedSettingsIdx].publishingSettings || {};
+                        if (e.target.checked) {
+                          st.slideshowMode = 'auto';
+                        } else {
+                          st.slideshowMode = []; // Disable auto, start with empty array
+                        }
+                        newNets[advancedSettingsIdx].publishingSettings = st;
+                        setNetworks(newNets);
+                      }}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-900">{t('dashboard', 'modals.slideshowAuto')}</span>
+                  </label>
+
+                  {(() => {
+                    let currentModes = networks[advancedSettingsIdx].publishingSettings?.slideshowMode;
+                    const isAuto = !Array.isArray(currentModes) && currentModes !== 'never' && currentModes !== 'always';
+
+                    if (isAuto) return null;
+
+                    if (!Array.isArray(currentModes)) {
+                      if (currentModes === 'always') currentModes = ['mixed_carousel', 'photo_carousel', 'single_image'];
+                      else currentModes = []; // 'never'
+                    }
+
+                    return [
+                      { id: 'mixed_carousel', label: t('dashboard', 'modals.slideshowMixedCarousel') },
+                      { id: 'photo_carousel', label: t('dashboard', 'modals.slideshowPhotoCarousel') },
+                      { id: 'single_image', label: t('dashboard', 'modals.slideshowSinglePhoto') }
+                    ].map(option => (
+                      <label key={option.id} className="flex items-center gap-2 cursor-pointer ml-4">
+                        <input
+                          type="checkbox"
+                          checked={(currentModes as string[]).includes(option.id)}
+                          onChange={(e) => {
+                            const newNets = [...networks];
+                            const st = newNets[advancedSettingsIdx].publishingSettings || {};
+                            let modes = [...(currentModes as string[])];
+                            if (e.target.checked) {
+                              modes.push(option.id);
+                            } else {
+                              modes = modes.filter(m => m !== option.id);
+                            }
+                            st.slideshowMode = modes;
+                            newNets[advancedSettingsIdx].publishingSettings = st;
+                            setNetworks(newNets);
+                          }}
+                          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">{option.label}</span>
+                      </label>
+                    ));
+                  })()}
+                </div>
                 <p className="text-xs text-gray-500">{t('dashboard', 'modals.slideshowDesc')}</p>
               </div>
 

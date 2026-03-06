@@ -173,20 +173,43 @@ export async function GET(req: Request) {
 
         for (const net of adaptedNetworks) {
           const pubSettings = net.publishingSettings || {};
-          const filter = pubSettings.contentFilter || 'none';
-          if (filter === 'only_reels' && !isSingleVideo) continue;
-          if (filter === 'exclude_reels' && isSingleVideo) continue;
+
+          const isSingleImage = !hasVideo && mediaUrls.length === 1;
+          const isPhotoCarousel = !hasVideo && mediaUrls.length > 1;
+
+          let filters = pubSettings.contentFilter || 'none';
+          if (!Array.isArray(filters)) {
+            if (filters === 'only_reels') filters = ['single_video'];
+            else if (filters === 'exclude_reels') filters = ['single_image', 'carousel', 'mixed_carousel'];
+            else filters = ['single_image', 'single_video', 'carousel', 'mixed_carousel'];
+          }
+
+          if (isSingleVideo && !filters.includes('single_video')) continue;
+          if (isSingleImage && !filters.includes('single_image')) continue;
+          if (isPhotoCarousel && !filters.includes('carousel')) continue;
+          if (isMixed && !filters.includes('mixed_carousel')) continue;
 
           let useSlideshow = false;
-          const mode = pubSettings.slideshowMode || 'auto';
-          if (mode === 'always') useSlideshow = true;
-          else if (mode === 'auto') {
+          let mode = pubSettings.slideshowMode || 'auto';
+
+          const isAuto = !Array.isArray(mode) && mode !== 'never' && mode !== 'always';
+
+          if (isAuto) {
             const platform = (net.platform || net.name).toLowerCase();
             if (['reddit', 'tiktok', 'reels', 'youtube'].some(p => platform.includes(p))) {
               if (mediaUrls.length > 1) useSlideshow = true;
             } else if (['linkedin', 'pinterest'].some(p => platform.includes(p))) {
               if (isMixed && mediaUrls.length > 1) useSlideshow = true;
             }
+          } else {
+            if (!Array.isArray(mode)) {
+              if (mode === 'always') mode = ['mixed_carousel', 'photo_carousel', 'single_image'];
+              else mode = []; // never
+            }
+
+            if (isMixed && mode.includes('mixed_carousel')) useSlideshow = true;
+            if (isPhotoCarousel && mode.includes('photo_carousel')) useSlideshow = true;
+            if (isSingleImage && mode.includes('single_image')) useSlideshow = true;
           }
 
           let currentFileIds: string[] = [];
