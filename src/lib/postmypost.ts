@@ -10,7 +10,6 @@ export async function uploadMediaToPostMyPost(media: PostMyPostMedia, token: str
 const fileName = media.fileName || `media_${Date.now()}`;
 
 // 0. Download from URL to Blob/Buffer
-  console.log(`[PMP Upload] Downloading media from ${media.url.substring(0, 100)}...`);
   let fileRes;
   try {
     fileRes = await fetch(media.url, {
@@ -26,7 +25,6 @@ const blob = await fileRes.blob();
 const size = blob.size;
 
 // 1. Init Upload
-  console.log(`[PMP Upload] Init upload for ${fileName} (${size} bytes)`);
   let initRes;
   try {
     initRes = await fetch(`${BASE_URL}/upload/init`, {
@@ -50,8 +48,6 @@ const initData = await initRes.json();
 const uploadId = initData.id;
 const uploadUrl = initData.action;
 const fields = initData.fields;
-
-  console.log(`[PMP Upload] Init successful. Upload ID: ${uploadId}, URL: ${uploadUrl}`);
 
 // 2. Upload to S3
 const formData = new FormData();
@@ -107,7 +103,6 @@ if (!s3Res.ok && s3Res.status !== 201 && s3Res.status !== 204) {
 }
 
 // 3. Complete Upload
-  console.log(`[PMP Upload] S3 complete. Completing PMP upload for ${uploadId}`);
   let completeRes;
   try {
     completeRes = await fetch(`${BASE_URL}/upload/complete?id=${encodeURIComponent(uploadId)}`, {

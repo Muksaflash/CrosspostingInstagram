@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { Instagram, Wand2, Send, RefreshCw, Settings, Search, Key, Save, LogOut, Plus, X, Trash2 } from "lucide-react";
 import { saveSocialNetwork, saveUserSetting, getUserSettings, getQuotas } from "@/app/actions";
 import { translations } from "@/i18n/translations";
-import Image from "next/image";
 import { signOut } from "next-auth/react";
 import { useLanguage } from "@/components/LanguageProvider";
 import DatePicker, { registerLocale } from "react-datepicker";

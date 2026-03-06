@@ -35,8 +35,6 @@ export async function adaptText(baseText: string, prompt: string, mainPrompt: st
     payload.reasoning_effort = 'high';
   }
 
-  console.log(`[OpenAI Request] Adapt Text using model: ${payload.model}`, isThinking ? '(with reasoning_effort: high)' : '');
-
   const res = await fetch(API_URL, {
     method: 'POST',
     headers: {
