@@ -269,6 +269,37 @@ export async function GET(req: Request) {
           // Mark as posted permanently
           await addPostToTracker(email, post.postKey);
           console.log(`Successfully auto-posted ${post.postKey} to PMP. Tracker updated.`);
+
+          // Update UI state so the user can see what was auto-posted
+          try {
+            // Update lastPost
+            await firestore
+              .collection("users")
+              .doc(email)
+              .collection("cache")
+              .doc("lastPost")
+              .set(post);
+
+            // Update social networks with the adapted text
+            const batch = firestore.batch();
+            for (const net of adaptedNetworks) {
+              if (net._docId) {
+                const netRef = firestore
+                  .collection("users")
+                  .doc(email)
+                  .collection("socialNetworks")
+                  .doc(net._docId);
+                batch.update(netRef, {
+                  adaptedText: net.adaptedText || "",
+                  adaptedTitle: net.adaptedTitle || ""
+                });
+              }
+            }
+            await batch.commit();
+            console.log(`Successfully updated UI state for auto-posted post ${post.postKey}`);
+          } catch (uiErr: any) {
+            console.error(`Failed to update UI state for ${post.postKey}:`, uiErr.message);
+          }
         } catch (err: any) {
              console.error(`Failed to publish ${post.postKey} to PMP:`, err.message);
         }
