@@ -57,24 +57,24 @@ function QuotaWidget({ quotas, fetchQuotas, loading }: any) {
   if (!quotas || (!quotas.instagram && !quotas.slideshow)) return null;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm mb-6 border border-gray-100 overflow-hidden">
+    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm mb-6 border border-gray-100 dark:border-zinc-800 dark:border-zinc-800 overflow-hidden">
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:bg-zinc-800 transition-colors"
       >
         <div className="flex items-center gap-4">
-          <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+          <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
             {t('dashboard', 'limitsAndQuotas')}
           </h2>
           {!isOpen && (
-            <div className="flex gap-3 text-xs font-medium text-gray-500">
+            <div className="flex gap-3 text-xs font-medium text-gray-500 dark:text-gray-400">
               {quotas.instagram && (
-                <span className="bg-gray-100 px-2 py-1 rounded">
+                <span className="bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded">
                   Insta: {quotas.instagram.limit - quotas.instagram.remaining} / {quotas.instagram.limit}
                 </span>
               )}
               {quotas.slideshow && (
-                <span className="bg-gray-100 px-2 py-1 rounded">
+                <span className="bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded">
                   Slide: {quotas.slideshow.credits_usage} / {quotas.slideshow.credits_limit}
                 </span>
               )}
@@ -100,21 +100,21 @@ function QuotaWidget({ quotas, fetchQuotas, loading }: any) {
       </div>
 
       {isOpen && (
-        <div className="p-4 pt-0 border-t border-gray-100">
+        <div className="p-4 pt-0 border-t border-gray-100 dark:border-zinc-800">
           <div className="grid md:grid-cols-2 gap-4 mt-4">
             {/* Instagram */}
             <div className="border rounded-lg overflow-hidden">
               <div className="bg-[#2D5A40] text-white px-4 py-2 font-medium text-sm">
                 {t('dashboard', 'requestsPerMonth')}
               </div>
-              <div className="p-4 space-y-1 text-sm bg-gray-50 min-h-[100px]">
+              <div className="p-4 space-y-1 text-sm bg-gray-50 dark:bg-zinc-800 min-h-[100px]">
                 {quotas.instagram ? (
                   <>
-                    <p className="text-gray-900">{quotas.instagram.limit - quotas.instagram.remaining} {t('dashboard', 'outOf')} {quotas.instagram.limit}</p>
-                    {quotas.instagramRefreshDate && <p className="text-gray-600">{t('dashboard', 'willUpdate')} {quotas.instagramRefreshDate}</p>}
+                    <p className="text-gray-900 dark:text-gray-100">{quotas.instagram.limit - quotas.instagram.remaining} {t('dashboard', 'outOf')} {quotas.instagram.limit}</p>
+                    {quotas.instagramRefreshDate && <p className="text-gray-600 dark:text-gray-400">{t('dashboard', 'willUpdate')} {quotas.instagramRefreshDate}</p>}
                   </>
                 ) : (
-                  <p className="text-gray-500">{t('dashboard', 'noData')}</p>
+                  <p className="text-gray-500 dark:text-gray-400">{t('dashboard', 'noData')}</p>
                 )}
               </div>
             </div>
@@ -124,19 +124,19 @@ function QuotaWidget({ quotas, fetchQuotas, loading }: any) {
               <div className="bg-[#2D5A40] text-white px-4 py-2 font-medium text-sm">
                 {t('dashboard', 'slideshowCredits')}
               </div>
-              <div className="p-4 space-y-1 text-sm bg-gray-50 min-h-[100px]">
+              <div className="p-4 space-y-1 text-sm bg-gray-50 dark:bg-zinc-800 min-h-[100px]">
                 {quotas.slideshow ? (
                   <>
-                    <p className="text-gray-900">{t('dashboard', 'plan')}: {quotas.slideshow.plan}</p>
-                    <p className="text-gray-900">
+                    <p className="text-gray-900 dark:text-gray-100">{t('dashboard', 'plan')}: {quotas.slideshow.plan}</p>
+                    <p className="text-gray-900 dark:text-gray-100">
                       {t('dashboard', 'creditsUsed')}: {quotas.slideshow.credits_limit > 0 ? Math.round((quotas.slideshow.credits_usage / quotas.slideshow.credits_limit) * 100) : 0}%
                       ({quotas.slideshow.credits_usage} {t('dashboard', 'outOf')} {quotas.slideshow.credits_limit})
                     </p>
-                    {quotas.slideshowRefreshDate && <p className="text-gray-600">{t('dashboard', 'willUpdate')} {quotas.slideshowRefreshDate}</p>}
+                    {quotas.slideshowRefreshDate && <p className="text-gray-600 dark:text-gray-400">{t('dashboard', 'willUpdate')} {quotas.slideshowRefreshDate}</p>}
                     {!quotas.slideshowRefreshDate && <p className="text-gray-400 text-xs">{t('dashboard', 'regDateNotSet')}</p>}
                   </>
                 ) : (
-                  <p className="text-gray-500">Нет данных</p>
+                  <p className="text-gray-500 dark:text-gray-400">Нет данных</p>
                 )}
               </div>
             </div>
@@ -556,49 +556,49 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
         <div className="flex gap-4">
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`font-semibold ${activeTab === 'dashboard' ? 'text-black border-b-2 border-black pb-4 -mb-4' : 'text-gray-500'}`}
+            className={`font-semibold ${activeTab === 'dashboard' ? 'text-black dark:text-white border-b-2 border-black dark:border-white pb-4 -mb-4' : 'text-gray-500 dark:text-gray-400'}`}
           >
             {t('dashboard', 'tabs.dashboard')}
           </button>
           <button
             onClick={() => setActiveTab('settings')}
-            className={`font-semibold flex items-center gap-2 ${activeTab === 'settings' ? 'text-black border-b-2 border-black pb-4 -mb-4' : 'text-gray-500'}`}
+            className={`font-semibold flex items-center gap-2 ${activeTab === 'settings' ? 'text-black dark:text-white border-b-2 border-black dark:border-white pb-4 -mb-4' : 'text-gray-500 dark:text-gray-400'}`}
           >
             <Key className="w-4 h-4" /> {t('dashboard', 'tabs.settings')}
           </button>
         </div>
         <button
           onClick={() => signOut({ callbackUrl: '/' })}
-          className="text-gray-500 hover:text-red-600 flex items-center gap-2 text-sm font-medium transition-colors"
+          className="text-gray-500 dark:text-gray-400 hover:text-red-600 flex items-center gap-2 text-sm font-medium transition-colors"
         >
           <LogOut className="w-4 h-4" /> {t('dashboard', 'logout')}
         </button>
       </div>
 
       {activeTab === 'settings' ? (
-        <div className="max-w-2xl bg-white p-6 rounded-xl shadow-sm space-y-6">
+        <div className="max-w-2xl bg-white dark:bg-zinc-900 p-6 rounded-xl shadow-sm space-y-6">
           <div className="border-t pt-6">
             <h2 className="text-xl font-bold">{t('dashboard', 'settingsText.title')}</h2>
-            <p className="text-gray-500 text-sm">{t('dashboard', 'settingsText.desc')}</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">{t('dashboard', 'settingsText.desc')}</p>
           </div>
 
           <div className="flex border-b">
             <button
               onClick={() => setSettingsTab('general')}
-              className={`py-2 px-4 font-medium text-sm transition-colors ${settingsTab === 'general' ? 'border-b-2 border-black text-black' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`py-2 px-4 font-medium text-sm transition-colors ${settingsTab === 'general' ? 'border-b-2 border-black dark:border-white text-black dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-300'}`}
             >
               {t('dashboard', 'settingsText.tabs.general')}
             </button>
             <button
               onClick={() => setSettingsTab('prompts')}
-              className={`py-2 px-4 font-medium text-sm transition-colors ${settingsTab === 'prompts' ? 'border-b-2 border-black text-black' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`py-2 px-4 font-medium text-sm transition-colors ${settingsTab === 'prompts' ? 'border-b-2 border-black dark:border-white text-black dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-300'}`}
             >
               {t('dashboard', 'settingsText.tabs.prompts')}
             </button>
           </div>
 
           {keysLoading ? (
-            <p className="text-gray-500">Loading settings...</p>
+            <p className="text-gray-500 dark:text-gray-400">Loading settings...</p>
           ) : settingsTab === 'general' ? (
             <div className="space-y-4">
               {[
@@ -623,7 +623,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                           setApiKeys({ ...apiKeys, [field.id]: e.target.value });
                           handleSaveKey(field.id, e.target.value);
                         }}
-                        className="flex-1 border p-2 rounded-md bg-white"
+                        className="flex-1 border p-2 rounded-md bg-white dark:bg-zinc-900"
                       >
                         {Object.entries(translations[language].dashboard.settingsText.models).map(([key, label]) => (
                           <option key={key} value={key}>{label}</option>
@@ -652,8 +652,8 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
           ) : (
             <div className="space-y-8">
               <div className="grid gap-2">
-                <label className="text-sm font-bold text-gray-900">{t('dashboard', 'settingsText.mainPromptLabel')}</label>
-                <p className="text-xs text-gray-500 mb-2">{t('dashboard', 'settingsText.mainPromptDesc')}</p>
+                <label className="text-sm font-bold text-gray-900 dark:text-gray-100">{t('dashboard', 'settingsText.mainPromptLabel')}</label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{t('dashboard', 'settingsText.mainPromptDesc')}</p>
                 <div className="flex gap-2 flex-col">
                   <textarea
                     value={apiKeys.MAIN_PROMPT}
@@ -674,7 +674,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
 
               <div className="pt-6 border-t">
                 <h3 className="text-lg font-bold mb-2">{t('dashboard', 'settingsText.tabs.prompts')}</h3>
-                <p className="text-sm text-gray-500 mb-6">{t('dashboard', 'settingsText.promptsTabDesc')}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">{t('dashboard', 'settingsText.promptsTabDesc')}</p>
 
                 <div className="space-y-6">
                   {PLATFORM_KEYS.map((platform) => {
@@ -683,7 +683,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                     const isCustom = customPrompts[platform] !== undefined;
 
                     return (
-                      <div key={platform} className="grid gap-2 p-4 bg-gray-50 rounded-lg border border-gray-100 relative">
+                      <div key={platform} className="grid gap-2 p-4 bg-gray-50 dark:bg-zinc-800 rounded-lg border border-gray-100 dark:border-zinc-800 relative">
                         <label className="text-sm font-semibold capitalize flex items-center justify-between">
                           <span>{t('dashboard', 'settingsText.platformPromptLabel')} {platform}</span>
                           {isCustom && <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Custom</span>}
@@ -695,7 +695,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                             setCustomPrompts({ ...customPrompts, [platform]: val });
                           }}
                           placeholder={t('dashboard', 'settingsText.platformPromptPlaceholder')}
-                          className={`flex-1 border p-3 rounded-md min-h-[80px] text-sm ${isCustom ? 'border-blue-200 focus:border-blue-500' : 'border-gray-200'}`}
+                          className={`flex-1 border p-3 rounded-md min-h-[80px] text-sm ${isCustom ? 'border-blue-200 focus:border-blue-500' : 'border-gray-200 dark:border-zinc-700'}`}
                         />
                         <div className="flex justify-between items-center mt-2">
                           {isCustom ? (
@@ -736,7 +736,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               {/* Left Column: Source Post */}
               <div className="space-y-6 lg:col-span-1">
-                <div className="rounded-xl bg-white p-6 shadow-sm">
+                <div className="rounded-xl bg-white dark:bg-zinc-900 p-6 shadow-sm">
                   <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold">
                     <Instagram className="h-5 w-5 text-pink-600" />
                     {t('dashboard', 'sourcePost')}
@@ -754,7 +754,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 mb-1">
+                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
                         {t('dashboard', 'fetchByLink')}
                       </label>
                       <div className="flex gap-2">
@@ -762,12 +762,12 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                           value={fetchLink}
                           onChange={(e) => setFetchLink(e.target.value)}
                           placeholder="https://instagram.com/p/..."
-                          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                          className="flex-1 rounded-lg border border-gray-300 dark:border-zinc-600 px-3 py-2 text-sm"
                         />
                         <button
                           onClick={handleFetchByLink}
                           disabled={loading || !fetchLink}
-                          className="rounded-lg bg-gray-100 p-2 hover:bg-gray-200"
+                          className="rounded-lg bg-gray-100 dark:bg-zinc-800 p-2 hover:bg-gray-200 dark:bg-zinc-700"
                           title="Получить пост"
                         >
                           <Search className="h-4 w-4" />
@@ -777,7 +777,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
 
                     {/* Schedule Date Input */}
                     <div className="pt-2 border-t">
-                      <label className="block text-xs font-semibold text-gray-500 mb-1">
+                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
                         {t('dashboard', 'scheduleDate')}
                       </label>
                       <DatePicker
@@ -800,14 +800,14 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                         dateFormat="dd.MM.yyyy HH:mm"
                         locale={language}
                         placeholderText={language === "ru" ? "ДД.ММ.ГГГГ --:--" : "MM/DD/YYYY --:--"}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                        className="w-full rounded-lg border border-gray-300 dark:border-zinc-600 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                       />
                     </div>
 
                     {post ? (
                       <div className="space-y-3 pt-4 border-t">
                         {post.imageUrl && (
-                          <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-gray-100">
+                          <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-gray-100 dark:bg-zinc-800">
                             <img src={`/api/proxy-image?url=${encodeURIComponent(post.imageUrl)}`} alt="Post preview" className="h-full w-full object-cover" />
                             <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
                               <span className="rounded bg-black/60 backdrop-blur-sm px-2 py-1 text-xs font-medium text-white shadow-sm">
@@ -825,7 +825,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                         <textarea
                           value={post.caption || ""}
                           onChange={(e) => setPost({ ...post, caption: e.target.value })}
-                          className="w-full text-sm text-gray-800 min-h-[150px] max-h-60 overflow-y-auto whitespace-pre-wrap p-3 rounded-md bg-gray-50 border border-gray-200 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors resize-y focus:outline-none"
+                          className="w-full text-sm text-gray-800 dark:text-gray-200 min-h-[150px] max-h-60 overflow-y-auto whitespace-pre-wrap p-3 rounded-md bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 focus:bg-white dark:bg-zinc-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors resize-y focus:outline-none"
                           placeholder={t('dashboard', 'postTextPlaceholder')}
                         />
 
@@ -838,7 +838,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                         </button>
                       </div>
                     ) : (
-                      <div className="flex h-64 items-center justify-center rounded-lg bg-gray-50 border-2 border-dashed">
+                      <div className="flex h-64 items-center justify-center rounded-lg bg-gray-50 dark:bg-zinc-800 border-2 border-dashed">
                         <p className="text-gray-400 text-sm">{t('dashboard', 'noPostLoaded')}</p>
                       </div>
                     )}
@@ -851,8 +851,8 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                 {/* Auto-Posting Toggle Card */}
                 <div className="rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-5 shadow-sm flex items-center justify-between">
                   <div>
-                    <span className="font-semibold text-gray-800 text-lg">{t('dashboard', 'autoPost.title')}</span>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <span className="font-semibold text-gray-800 dark:text-gray-200 text-lg">{t('dashboard', 'autoPost.title')}</span>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                       {t('dashboard', 'autoPost.desc')}
                     </p>
                   </div>
@@ -867,7 +867,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                       }}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-zinc-900 after:border-gray-300 dark:border-zinc-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                   </label>
                 </div>
 
@@ -875,7 +875,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                 <div className="rounded-xl bg-gradient-to-r from-red-50 to-pink-50 border border-red-100 p-5 shadow-sm">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-lg">📌</span>
-                    <span className="font-semibold text-gray-800">{t('dashboard', 'pinterestLink.title')}</span>
+                    <span className="font-semibold text-gray-800 dark:text-gray-200">{t('dashboard', 'pinterestLink.title')}</span>
                   </div>
                   <div className="flex gap-2">
                     <input
@@ -883,7 +883,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                       value={pinterestLink}
                       onChange={(e) => setPinterestLink(e.target.value)}
                       placeholder="https://mysite.com/course"
-                      className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-red-400 focus:outline-none"
+                      className="flex-1 rounded-lg border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-sm focus:border-red-400 focus:outline-none"
                     />
                     <button
                       onClick={() => handleSaveKey('PINTEREST_LINK', pinterestLink)}
@@ -893,16 +893,16 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                       {t('dashboard', 'pinterestLink.save')}
                     </button>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">{t('dashboard', 'pinterestLink.desc')}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">{t('dashboard', 'pinterestLink.desc')}</p>
                 </div>
 
-                <div className="rounded-xl bg-white p-6 shadow-sm">
+                <div className="rounded-xl bg-white dark:bg-zinc-900 p-6 shadow-sm">
                   <div className="mb-6 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <h2 className="text-xl font-semibold">{t('dashboard', 'socialNetworks.title')}</h2>
                       <button
                         onClick={handleOpenAddNetworkModal}
-                        className="flex items-center gap-1 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                        className="flex items-center gap-1 rounded-md bg-gray-100 dark:bg-zinc-800 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:bg-zinc-700 transition-colors"
                       >
                         <Plus className="h-4 w-4" /> {t('dashboard', 'socialNetworks.addNetwork')}
                       </button>
@@ -919,12 +919,12 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
 
                   <div className="grid gap-4 md:grid-cols-2">
                     {networks.map((net, idx) => (
-                      <div key={net._docId || net.accountId || idx} className={`relative rounded-xl border p-4 transition-all ${net.enabled ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100 opacity-75'}`}>
+                      <div key={net._docId || net.accountId || idx} className={`relative rounded-xl border p-4 transition-all ${net.enabled ? 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700' : 'bg-gray-50 dark:bg-zinc-800 border-gray-100 dark:border-zinc-800 opacity-75'}`}>
                         <div className="mb-3 flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <input
                               type="text"
-                              className="font-medium bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none transition-colors max-w-[150px] truncate"
+                              className="font-medium bg-transparent border-b border-transparent hover:border-gray-300 dark:border-zinc-600 focus:border-blue-500 focus:outline-none transition-colors max-w-[150px] truncate"
                               value={net.name}
                               onChange={(e) => {
                                 const newNet = [...networks];
@@ -941,31 +941,31 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                           <div className="flex items-center gap-2">
                             <label className="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" checked={net.enabled} onChange={() => toggleNetwork(idx)} className="sr-only peer" />
-                            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                            <div className="w-9 h-5 bg-gray-200 dark:bg-zinc-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-zinc-900 after:border-gray-300 dark:border-zinc-600 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                             </label>
                             <div className="relative">
                               <button
                                 onClick={() => setExpandedSettingsIdx(expandedSettingsIdx === idx ? null : idx)}
-                                className="p-1 rounded-md text-gray-500 hover:bg-gray-100 transition-colors"
+                                className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:bg-zinc-800 transition-colors"
                                 title={t('dashboard', 'networkCard.settings')}
                               >
                                 <Settings className="w-4 h-4" />
                               </button>
                               {expandedSettingsIdx === idx && (
-                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-100 p-1 z-10">
+                                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-900 rounded-md shadow-lg border border-gray-100 dark:border-zinc-800 p-1 z-10">
                                   <button
                                     onClick={() => {
                                       setAdvancedSettingsIdx(idx);
                                       setExpandedSettingsIdx(null);
                                     }}
-                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded flex items-center gap-2 transition-colors border-b border-gray-100 mb-1"
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-zinc-800 rounded flex items-center gap-2 transition-colors border-b border-gray-100 dark:border-zinc-800 mb-1"
                                   >
                                     <Settings className="w-4 h-4" />
                                     {t('dashboard', 'networkCard.advancedSettings')}
                                   </button>
                                   <button
                                     onClick={() => handleSuggestPrompt(idx)}
-                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded flex items-center gap-2 transition-colors border-b border-gray-100 mb-1"
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-zinc-800 rounded flex items-center gap-2 transition-colors border-b border-gray-100 dark:border-zinc-800 mb-1"
                                   >
                                     <Zap className="w-4 h-4 text-amber-500" />
                                     {t('dashboard', 'networkCard.suggestPrompt')}
@@ -989,7 +989,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                         </div>
 
                         {net.enabled && (
-                          <div className="space-y-4 pt-4 mt-2 border-t border-gray-100">
+                          <div className="space-y-4 pt-4 mt-2 border-t border-gray-100 dark:border-zinc-800">
                             <div className="grid gap-3 sm:grid-cols-2">
                               <button
                                 onClick={() => handleRewriteSingle(idx)}
@@ -1016,7 +1016,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                             )}
 
                             <div className="space-y-1">
-                              <label className="text-xs font-medium text-gray-600">{t('dashboard', 'networkCard.promptLabel')}</label>
+                              <label className="text-xs font-medium text-gray-600 dark:text-gray-400">{t('dashboard', 'networkCard.promptLabel')}</label>
                               <textarea
                                 value={net.prompt || ''}
                                 onChange={(e) => {
@@ -1028,13 +1028,13 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                   saveSocialNetwork(net._docId || net.accountId || net.name, networks[idx]);
                                 }}
                                 placeholder={t('dashboard', 'networkCard.promptPlaceholder')}
-                                className="w-full rounded-md border border-gray-200 p-2 text-xs focus:border-blue-500 focus:outline-none min-h-[60px]"
+                                className="w-full rounded-md border border-gray-200 dark:border-zinc-700 p-2 text-xs focus:border-blue-500 focus:outline-none min-h-[60px]"
                               />
                             </div>
 
                             <div className="space-y-3">
                               <div>
-                                <label className="text-xs font-medium text-gray-600">{t('dashboard', 'networkCard.titleLabel')}</label>
+                                <label className="text-xs font-medium text-gray-600 dark:text-gray-400">{t('dashboard', 'networkCard.titleLabel')}</label>
                                 <input
                                   type="text"
                                   value={net.adaptedTitle || ''}
@@ -1047,11 +1047,11 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                     saveSocialNetwork(net._docId || net.accountId || net.name, networks[idx]);
                                   }}
                                   placeholder={t('dashboard', 'networkCard.titlePlaceholder')}
-                                  className="w-full mt-1 rounded-md border border-gray-200 p-2 text-sm focus:border-blue-500 focus:outline-none"
+                                  className="w-full mt-1 rounded-md border border-gray-200 dark:border-zinc-700 p-2 text-sm focus:border-blue-500 focus:outline-none"
                                 />
                               </div>
                               <div>
-                                <label className="text-xs font-medium text-gray-600">{t('dashboard', 'networkCard.adaptedTextLabel')}</label>
+                                <label className="text-xs font-medium text-gray-600 dark:text-gray-400">{t('dashboard', 'networkCard.adaptedTextLabel')}</label>
                                 <textarea
                                   value={net.adaptedText || ''}
                                   onChange={(e) => {
@@ -1063,7 +1063,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                     saveSocialNetwork(net._docId || net.accountId || net.name, networks[idx]);
                                   }}
                                   placeholder={t('dashboard', 'networkCard.adaptedTextPlaceholder')}
-                                  className="w-full mt-1 rounded-md border border-gray-200 p-2 text-sm focus:border-blue-500 focus:outline-none min-h-[100px]"
+                                  className="w-full mt-1 rounded-md border border-gray-200 dark:border-zinc-700 p-2 text-sm focus:border-blue-500 focus:outline-none min-h-[100px]"
                                 />
                               </div>
                             </div>
@@ -1081,22 +1081,22 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
       {/* Add Network Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl relative">
+          <div className="w-full max-w-lg rounded-xl bg-white dark:bg-zinc-900 p-6 shadow-2xl relative">
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:text-gray-400"
             >
               <X className="h-5 w-5" />
             </button>
             <h2 className="text-xl font-bold mb-4">{t('dashboard', 'modals.addNetworkTitle')}</h2>
-            <p className="text-sm text-gray-500 mb-6">{t('dashboard', 'modals.addNetworkDesc')}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">{t('dashboard', 'modals.addNetworkDesc')}</p>
 
             {loadingAccounts ? (
               <div className="flex justify-center p-8">
                 <RefreshCw className="h-6 w-6 animate-spin text-blue-600" />
               </div>
             ) : availableAccounts.length === 0 ? (
-              <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-lg border border-dashed">
+              <div className="p-8 text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-zinc-800 rounded-lg border border-dashed">
                 {t('dashboard', 'modals.noAccounts')}
               </div>
             ) : (
@@ -1104,10 +1104,10 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                 {availableAccounts.map((acc: any) => {
                   const isAdded = networks.some(n => n.accountId === acc.id);
                   return (
-                    <div key={acc.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-blue-200 hover:bg-blue-50/50 transition-colors">
+                    <div key={acc.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-zinc-700 hover:border-blue-200 hover:bg-blue-50/50 transition-colors">
                       <div>
-                        <p className="font-medium text-gray-900">{acc.name || acc.platform}</p>
-                        <p className="text-xs text-gray-500 flex gap-2">
+                        <p className="font-medium text-gray-900 dark:text-gray-100">{acc.name || acc.platform}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 flex gap-2">
                           <span>{t('dashboard', 'modals.platform')}: <span className="capitalize">{acc.platform}</span></span>
                           <span>({acc.id})</span>
                         </p>
@@ -1115,7 +1115,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                       <button
                         onClick={() => handleAddNetwork(acc)}
                         disabled={isAdded}
-                        className={`px-4 py-1.5 rounded-md text-sm font-medium ${isAdded ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                        className={`px-4 py-1.5 rounded-md text-sm font-medium ${isAdded ? 'bg-gray-100 dark:bg-zinc-800 text-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                       >
                         {isAdded ? t('dashboard', 'modals.added') : t('dashboard', 'modals.add')}
                       </button>
@@ -1131,23 +1131,23 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
       {/* Advanced Settings Modal */}
       {advancedSettingsIdx !== null && networks[advancedSettingsIdx] && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-lg rounded-xl bg-white dark:bg-zinc-900 p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => {
                 const net = networks[advancedSettingsIdx];
                 saveSocialNetwork(net._docId || net.accountId || net.name, net);
                 setAdvancedSettingsIdx(null);
               }}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:text-gray-400"
             >
               <X className="h-5 w-5" />
             </button>
             <h2 className="text-xl font-bold mb-2">{t('dashboard', 'modals.advSettingsTitle')}</h2>
-            <p className="text-sm text-gray-500 mb-6 font-medium bg-gray-50 p-2 rounded inline-block">{networks[advancedSettingsIdx].name}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 font-medium bg-gray-50 dark:bg-zinc-800 p-2 rounded inline-block">{networks[advancedSettingsIdx].name}</p>
 
             <div className="space-y-5">
               <div className="space-y-2">
-                <label className="text-sm font-semibold block text-gray-700">{t('dashboard', 'modals.contentFilter')}</label>
+                <label className="text-sm font-semibold block text-gray-700 dark:text-gray-300">{t('dashboard', 'modals.contentFilter')}</label>
                 <div className="flex flex-col gap-2">
                   {[
                     { id: 'single_image', label: t('dashboard', 'modals.filterSingleImage') },
@@ -1183,16 +1183,16 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                           }}
                           className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                         />
-                        <span className="text-sm text-gray-700">{option.label}</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{option.label}</span>
                       </label>
                     );
                   })}
                 </div>
-                <p className="text-xs text-gray-500">{t('dashboard', 'modals.filterDesc')}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{t('dashboard', 'modals.filterDesc')}</p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold block text-gray-700">{t('dashboard', 'modals.slideshowMode')}</label>
+                <label className="text-sm font-semibold block text-gray-700 dark:text-gray-300">{t('dashboard', 'modals.slideshowMode')}</label>
                 <div className="flex flex-col gap-2">
                   <label className="flex items-center gap-2 cursor-pointer mb-2">
                     <input
@@ -1215,7 +1215,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                       }}
                       className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                     />
-                    <span className="text-sm font-medium text-gray-900">{t('dashboard', 'modals.slideshowAuto')}</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{t('dashboard', 'modals.slideshowAuto')}</span>
                   </label>
 
                   {(() => {
@@ -1253,16 +1253,16 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                           }}
                           className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                         />
-                        <span className="text-sm text-gray-700">{option.label}</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{option.label}</span>
                       </label>
                     ));
                   })()}
                 </div>
-                <p className="text-xs text-gray-500">{t('dashboard', 'modals.slideshowDesc')}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{t('dashboard', 'modals.slideshowDesc')}</p>
               </div>
 
               <div className="space-y-2 border-t pt-4">
-                <label className="text-sm font-semibold block text-gray-700">{t('dashboard', 'modals.pubType')}</label>
+                <label className="text-sm font-semibold block text-gray-700 dark:text-gray-300">{t('dashboard', 'modals.pubType')}</label>
                 <select
                   className="w-full border rounded-md p-2 text-sm focus:border-blue-500 outline-none"
                   value={networks[advancedSettingsIdx].publishingSettings?.publicationType || 1}
@@ -1280,13 +1280,13 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
               </div>
 
               {networks[advancedSettingsIdx].platform?.toLowerCase().includes('tiktok') && (
-                <div className="space-y-3 border-t pt-4 bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-sm font-semibold text-gray-900">{t('dashboard', 'modals.tiktokOptions')}</h3>
+                <div className="space-y-3 border-t pt-4 bg-gray-50 dark:bg-zinc-800 p-4 rounded-lg">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('dashboard', 'modals.tiktokOptions')}</h3>
 
                   <div className="flex items-center justify-between">
-                    <label className="text-sm text-gray-700">{t('dashboard', 'modals.tiktokPrivacy')}</label>
+                    <label className="text-sm text-gray-700 dark:text-gray-300">{t('dashboard', 'modals.tiktokPrivacy')}</label>
                     <select
-                      className="border rounded px-2 py-1 text-sm bg-white"
+                      className="border rounded px-2 py-1 text-sm bg-white dark:bg-zinc-900"
                       value={networks[advancedSettingsIdx].publishingSettings?.tiktokPrivacyStatus || 1}
                       onChange={(e) => {
                         const newNets = [...networks];
@@ -1303,11 +1303,11 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                   </div>
 
                   {['comment', 'duet', 'stitch'].map(opt => (
-                    <label key={opt} className="flex items-center justify-between text-sm text-gray-700">
+                    <label key={opt} className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300">
                       <span className="capitalize">Allow {opt}</span>
                       <input
                               type="checkbox"
-                              className="rounded border-gray-300 w-4 h-4 text-blue-600 focus:ring-blue-500"
+                              className="rounded border-gray-300 dark:border-zinc-600 w-4 h-4 text-blue-600 focus:ring-blue-500"
                               checked={networks[advancedSettingsIdx].publishingSettings?.[`tiktok${opt.charAt(0).toUpperCase() + opt.slice(1)}` as keyof PublishingSettings] as boolean ?? true}
                               onChange={(e) => {
                                 const newNets = [...networks];
@@ -1324,7 +1324,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
 
               {networks[advancedSettingsIdx].platform?.toLowerCase().includes('pinterest') && (
                 <div className="space-y-2 border-t pt-4">
-                  <label className="text-sm font-semibold block text-gray-700">{t('dashboard', 'modals.pinterestPinLink')}</label>
+                  <label className="text-sm font-semibold block text-gray-700 dark:text-gray-300">{t('dashboard', 'modals.pinterestPinLink')}</label>
                   <input
                     type="url"
                     placeholder="https://test.com"
@@ -1338,7 +1338,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                       setNetworks(newNets);
                     }}
                   />
-                  <p className="text-xs text-gray-500">{t('dashboard', 'modals.pinterestPinLinkDesc')}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('dashboard', 'modals.pinterestPinLinkDesc')}</p>
                 </div>
               )}
             </div>
