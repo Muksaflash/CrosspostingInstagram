@@ -4,6 +4,7 @@ import type { NextAuthConfig } from "next-auth";
 export const authConfig: NextAuthConfig = {
   providers: [
     Google({
+      checks: ["none"],
       authorization: {
         params: {
           prompt: "select_account",
