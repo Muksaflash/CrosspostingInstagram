@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { validateTelegramData } from './telegram';
+import { validateTelegramData } from './telegram.ts';
 import { createHmac } from 'node:crypto';
 
 /**
