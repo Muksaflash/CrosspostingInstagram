@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Instagram, Wand2, Send, RefreshCw, Settings, Search, Key, Save, LogOut, Plus, X, Trash2 } from "lucide-react";
+import { Instagram, Wand2, Send, RefreshCw, Settings, Search, Key, Save, LogOut, Plus, X, Trash2, Zap } from "lucide-react";
 import { saveSocialNetwork, saveUserSetting, getUserSettings, getQuotas } from "@/app/actions";
 import { translations } from "@/i18n/translations";
+import { defaultPrompts, PLATFORM_KEYS, PlatformKey, detectPlatform } from "@/lib/prompts";
 import Image from "next/image";
 import { signOut } from "next-auth/react";
 import { useLanguage } from "@/components/LanguageProvider";
@@ -149,6 +150,7 @@ function QuotaWidget({ quotas, fetchQuotas, loading }: any) {
 export default function Dashboard({ initialNetworks, initialPost }: { initialNetworks: any[]; initialPost?: any }) {
   const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'settings'>('dashboard');
+  const [settingsTab, setSettingsTab] = useState<'general' | 'prompts'>('general');
 
   const [networks, setNetworks] = useState<SocialNetwork[]>(initialNetworks.length ? initialNetworks : [
     { name: 'Telegram', enabled: true, model: 'gpt-5.2', prompt: 'Перепиши текст для Telegram канала...' },
@@ -178,8 +180,10 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
     CLOUDINARY_API_SECRET: '',
     CLOUDINARY_REG_DATE: '',
     OPENAI_MODEL: 'gpt-4o',
-    MAIN_PROMPT: 'Ты маркетолог, который адаптирует тексты постов под разные соцсети. Если в посте есть ссылка на сайт курса то вставляй всегда эту...'
+    MAIN_PROMPT: 'Ты маркетолог, который адаптирует тексты постов под разные соцсети. Если в посте есть ссылка на сайт курса то вставляй всегда эту...',
+    CUSTOM_PROMPTS: '{}'
   });
+  const [customPrompts, setCustomPrompts] = useState<Record<string, string>>({});
   const [keysLoading, setKeysLoading] = useState(false);
 
   // Modal specific state
@@ -223,8 +227,14 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
         CLOUDINARY_API_SECRET: settings.CLOUDINARY_API_SECRET || '',
         CLOUDINARY_REG_DATE: settings.CLOUDINARY_REG_DATE || '',
         OPENAI_MODEL: settings.OPENAI_MODEL || 'gpt-5.2',
-        MAIN_PROMPT: settings.MAIN_PROMPT || 'Ты маркетолог, который адаптирует тексты постов под разные соцсети. Если в посте есть ссылка на сайт курса то вставляй всегда эту...'
+        MAIN_PROMPT: settings.MAIN_PROMPT || 'Ты маркетолог, который адаптирует тексты постов под разные соцсети. Если в посте есть ссылка на сайт курса то вставляй всегда эту...',
+        CUSTOM_PROMPTS: settings.CUSTOM_PROMPTS || '{}'
       });
+      try {
+        setCustomPrompts(JSON.parse(settings.CUSTOM_PROMPTS || '{}'));
+      } catch (e) {
+        setCustomPrompts({});
+      }
       setAutoPostEnabled(!!settings.AUTO_POST_ENABLED_AT);
       setPinterestLink(settings.PINTEREST_LINK || '');
     }
@@ -233,6 +243,38 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
 
   const handleSaveKey = async (key: string, value: string) => {
     await saveUserSetting(key, value);
+  };
+
+  const handleSaveCustomPrompt = async (platform: PlatformKey, text: string) => {
+    const newPrompts = { ...customPrompts, [platform]: text };
+    setCustomPrompts(newPrompts);
+    const jsonStr = JSON.stringify(newPrompts);
+    setApiKeys({ ...apiKeys, CUSTOM_PROMPTS: jsonStr });
+    await handleSaveKey('CUSTOM_PROMPTS', jsonStr);
+  };
+
+  const handleSuggestPrompt = (idx: number) => {
+    const net = networks[idx];
+    const platform = detectPlatform(net.name);
+    if (!platform) {
+      alert(t('dashboard', 'networkCard.suggestPromptError'));
+      return;
+    }
+
+    // First check custom prompts, then fallback to system default
+    const suggestedPrompt = customPrompts[platform] || defaultPrompts[language as 'en' | 'ru'][platform];
+
+    if (net.prompt && net.prompt !== suggestedPrompt) {
+      if (!window.confirm(t('dashboard', 'networkCard.suggestPromptConfirm'))) {
+        return;
+      }
+    }
+
+    const newNetworks = [...networks];
+    newNetworks[idx].prompt = suggestedPrompt;
+    setNetworks(newNetworks);
+    saveSocialNetwork(net._docId || net.accountId || net.name, newNetworks[idx]);
+    setExpandedSettingsIdx(null);
   };
 
   // Handler stubs - these would call Server Actions or API routes
@@ -540,9 +582,24 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
             <p className="text-gray-500 text-sm">{t('dashboard', 'settingsText.desc')}</p>
           </div>
 
+          <div className="flex border-b">
+            <button
+              onClick={() => setSettingsTab('general')}
+              className={`py-2 px-4 font-medium text-sm transition-colors ${settingsTab === 'general' ? 'border-b-2 border-black text-black' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              {t('dashboard', 'settingsText.tabs.general')}
+            </button>
+            <button
+              onClick={() => setSettingsTab('prompts')}
+              className={`py-2 px-4 font-medium text-sm transition-colors ${settingsTab === 'prompts' ? 'border-b-2 border-black text-black' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              {t('dashboard', 'settingsText.tabs.prompts')}
+            </button>
+          </div>
+
           {keysLoading ? (
             <p className="text-gray-500">Loading settings...</p>
-          ) : (
+          ) : settingsTab === 'general' ? (
             <div className="space-y-4">
               {[
                 { id: 'OPENAI_MODEL', label: 'OpenAI Model', type: 'select' },
@@ -591,8 +648,12 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                 </div>
               ))}
 
-              <div className="grid gap-2 mt-4 pt-4 border-t">
-                <label className="text-sm font-medium">{t('dashboard', 'settingsText.mainPromptLabel')}</label>
+            </div>
+          ) : (
+            <div className="space-y-8">
+              <div className="grid gap-2">
+                <label className="text-sm font-bold text-gray-900">{t('dashboard', 'settingsText.mainPromptLabel')}</label>
+                <p className="text-xs text-gray-500 mb-2">{t('dashboard', 'settingsText.mainPromptDesc')}</p>
                 <div className="flex gap-2 flex-col">
                   <textarea
                     value={apiKeys.MAIN_PROMPT}
@@ -609,9 +670,63 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                     </button>
                   </div>
                 </div>
-                <p className="text-xs text-gray-500">{t('dashboard', 'settingsText.mainPromptDesc')}</p>
               </div>
 
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-bold mb-2">{t('dashboard', 'settingsText.tabs.prompts')}</h3>
+                <p className="text-sm text-gray-500 mb-6">{t('dashboard', 'settingsText.promptsTabDesc')}</p>
+
+                <div className="space-y-6">
+                  {PLATFORM_KEYS.map((platform) => {
+                    const systemPrompt = defaultPrompts[language as 'en' | 'ru'][platform];
+                    const currentPrompt = customPrompts[platform] !== undefined ? customPrompts[platform] : systemPrompt;
+                    const isCustom = customPrompts[platform] !== undefined;
+
+                    return (
+                      <div key={platform} className="grid gap-2 p-4 bg-gray-50 rounded-lg border border-gray-100 relative">
+                        <label className="text-sm font-semibold capitalize flex items-center justify-between">
+                          <span>{t('dashboard', 'settingsText.platformPromptLabel')} {platform}</span>
+                          {isCustom && <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Custom</span>}
+                        </label>
+                        <textarea
+                          value={currentPrompt}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCustomPrompts({ ...customPrompts, [platform]: val });
+                          }}
+                          placeholder={t('dashboard', 'settingsText.platformPromptPlaceholder')}
+                          className={`flex-1 border p-3 rounded-md min-h-[80px] text-sm ${isCustom ? 'border-blue-200 focus:border-blue-500' : 'border-gray-200'}`}
+                        />
+                        <div className="flex justify-between items-center mt-2">
+                          {isCustom ? (
+                            <button
+                              onClick={() => {
+                                const newPrompts = { ...customPrompts };
+                                delete newPrompts[platform];
+                                setCustomPrompts(newPrompts);
+                                const jsonStr = JSON.stringify(newPrompts);
+                                setApiKeys({ ...apiKeys, CUSTOM_PROMPTS: jsonStr });
+                                handleSaveKey('CUSTOM_PROMPTS', jsonStr);
+                              }}
+                              className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1"
+                            >
+                              Reset to default
+                            </button>
+                          ) : (
+                            <div /> // Spacer
+                          )}
+                          <button
+                            onClick={() => handleSaveCustomPrompt(platform, currentPrompt)}
+                            className="bg-gray-800 text-white px-3 py-1.5 text-sm rounded-md hover:bg-black flex items-center gap-1.5 transition-colors"
+                          >
+                            <Save className="w-3.5 h-3.5" /> {t('dashboard', 'settingsText.savePrompt')}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -847,6 +962,13 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                   >
                                     <Settings className="w-4 h-4" />
                                     {t('dashboard', 'networkCard.advancedSettings')}
+                                  </button>
+                                  <button
+                                    onClick={() => handleSuggestPrompt(idx)}
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded flex items-center gap-2 transition-colors border-b border-gray-100 mb-1"
+                                  >
+                                    <Zap className="w-4 h-4 text-amber-500" />
+                                    {t('dashboard', 'networkCard.suggestPrompt')}
                                   </button>
                                   <button
                                     onClick={() => {
