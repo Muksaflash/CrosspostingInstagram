@@ -7,6 +7,25 @@ export async function GET(request: NextRequest) {
     return new NextResponse("Missing URL", { status: 400 });
   }
 
+  // Security: Only allow proxying from known CDN domains to prevent SSRF
+  const ALLOWED_DOMAINS = ["cdninstagram.com", "fbcdn.net", "res.cloudinary.com"];
+
+  try {
+    const parsedUrl = new URL(url);
+    const hostname = parsedUrl.hostname;
+
+    const isAllowed = ALLOWED_DOMAINS.some(domain =>
+      hostname === domain || hostname.endsWith("." + domain)
+    );
+
+    if (!isAllowed) {
+      console.warn(`Blocked proxy attempt to unauthorized domain: ${hostname}`);
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+  } catch (error) {
+    return new NextResponse("Invalid URL", { status: 400 });
+  }
+
   try {
     const response = await fetch(url, {
       headers: {
