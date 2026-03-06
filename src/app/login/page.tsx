@@ -3,10 +3,10 @@ import { signIn } from "@/auth"
  
 export default function SignIn() {
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-gray-50">
-      <div className="w-full max-w-sm space-y-4 rounded-lg bg-white p-6 shadow-md">
-        <h1 className="text-center text-2xl font-bold">Welcome Back</h1>
-        <p className="text-center text-gray-500">Sign in to access your dashboard</p>
+    <div className="flex h-screen w-full items-center justify-center bg-gray-50 dark:bg-zinc-950">
+      <div className="w-full max-w-sm space-y-4 rounded-lg bg-white dark:bg-zinc-900 p-6 shadow-md">
+        <h1 className="text-center text-2xl font-bold dark:text-white">Welcome Back</h1>
+        <p className="text-center text-gray-500 dark:text-zinc-400">Sign in to access your dashboard</p>
         <form
           action={async () => {
             "use server"
