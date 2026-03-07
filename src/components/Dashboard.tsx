@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import { Instagram, Wand2, Send, RefreshCw, Settings, Search, Key, Save, LogOut, Plus, X, Trash2, Zap } from "lucide-react";
 import { saveSocialNetwork, saveUserSetting, getUserSettings, getQuotas } from "@/app/actions";
 import { translations } from "@/i18n/translations";
-import { defaultPrompts, PLATFORM_KEYS, PlatformKey, detectPlatform } from "@/lib/prompts";
+import { defaultPrompts, PLATFORM_KEYS, type PlatformKey, detectPlatform } from "@/lib/prompts";
+import { type SocialNetwork, type PublishingSettings } from "@/lib/types";
+import { type InstagramPost } from "@/lib/instagram";
 import Image from "next/image";
 import { signOut } from "next-auth/react";
 import { useLanguage } from "@/components/LanguageProvider";
@@ -16,39 +18,6 @@ import { enUS as enLocale } from "date-fns/locale/en-US";
 registerLocale("ru", ruLocale);
 registerLocale("en", enLocale);
 
-export interface PublishingSettings {
-  slideshowMode?: 'auto' | 'always' | 'never' | string[];
-  contentFilter?: 'none' | 'only_reels' | 'exclude_reels' | string[];
-  publicationType?: number;
-  tiktokPrivacyStatus?: number;
-  tiktokComment?: boolean;
-  tiktokDuet?: boolean;
-  tiktokStitch?: boolean;
-  pinterestLink?: string;
-}
-
-interface SocialNetwork {
-  _docId?: string; // Stable ID from Firestore
-  name: string;
-  enabled: boolean;
-  model: string;
-  prompt: string;
-  accountId?: string; // Newly added for PostMyPost integration
-  platform?: string; // E.g., 'telegram', 'vkontakte'
-  adaptedText?: string;
-  adaptedTitle?: string;
-  status?: 'idle' | 'loading' | 'rewriting' | 'publishing' | 'success' | 'error';
-  errorMsg?: string;
-  publishingSettings?: PublishingSettings;
-}
-
-interface InstagramPost {
-  imageUrl: string;
-  caption: string;
-  postUrl: string;
-  type: string;
-  mediaUrls: string[];
-}
 
 function QuotaWidget({ quotas, fetchQuotas, loading }: any) {
   const { t } = useLanguage();
