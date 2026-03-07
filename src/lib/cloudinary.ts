@@ -116,11 +116,9 @@ export async function createCloudinarySlideshowUrl(urls: string[], conf: Cloudin
   }
   if (!urls || !urls.length) throw new Error('No URLs for slideshow');
 
-  // 1) Download and upload all sources
-  const rawAssets = [];
-  for (let i = 0; i < urls.length; i++) {
-    const u = urls[i];
-    if (!u) continue;
+  // 1) Download and upload all sources concurrently
+  const assetPromises = urls.map(async (u, i) => {
+    if (!u) return null;
     const isVid = isVideoUrl(u);
     
     const dRes = await fetch(u);
@@ -128,14 +126,16 @@ export async function createCloudinarySlideshowUrl(urls: string[], conf: Cloudin
     const blob = await dRes.blob();
     
     const upRes = await uploadToCloudinary(blob, isVid ? 'video' : 'image', conf);
-    rawAssets.push({
+    return {
       type: isVid ? 'video' : 'image',
       publicId: upRes.publicId,
       width: upRes.width,
       height: upRes.height,
       index: i
-    });
-  }
+    };
+  });
+
+  const rawAssets = (await Promise.all(assetPromises)).filter((a): a is NonNullable<typeof a> => !!a);
 
   if (!rawAssets.length) throw new Error('No media uploaded');
 
@@ -144,11 +144,10 @@ export async function createCloudinarySlideshowUrl(urls: string[], conf: Cloudin
   const TARGET_H = baseVideo.height;
   const donorVideoId = baseVideo.type === 'video' ? baseVideo.publicId : 'sample';
 
-  // 2) Convert IMAGE to VIDEO segments
-  const videoAssets = [];
-  for (const asset of rawAssets) {
+  // 2) Convert IMAGE to VIDEO segments concurrently
+  const videoAssetsPromises = rawAssets.map(async (asset) => {
     if (asset.type === 'video') {
-      videoAssets.push(asset);
+      return asset;
     } else {
       const transformations = [
         `w_${TARGET_W},h_${TARGET_H},c_pad,b_black`, // slide back
@@ -165,15 +164,17 @@ export async function createCloudinarySlideshowUrl(urls: string[], conf: Cloudin
       const vBlob = await vRes.blob();
       
       const vUpRes = await uploadToCloudinary(vBlob, 'video', conf);
-      videoAssets.push({
-        type: 'video',
+      return {
+        type: 'video' as const,
         publicId: vUpRes.publicId,
         width: TARGET_W,
         height: TARGET_H,
         index: asset.index
-      });
+      };
     }
-  }
+  });
+
+  const videoAssets = await Promise.all(videoAssetsPromises);
 
   // 3) Splice together
   const baseAsset = videoAssets[0];
