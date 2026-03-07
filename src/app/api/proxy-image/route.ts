@@ -52,6 +52,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("Image Proxy Error:", error);
-    return new NextResponse("Error fetching image", { status: 500 });
+    return new NextResponse("Internal Server Error", { status: 500 });
   }
 }

@@ -37,6 +37,6 @@ export async function GET() {
     return NextResponse.json(data);
   } catch (error: any) {
     console.error("PostMyPost Fetch Error:", error);
-    return new NextResponse(error.message, { status: 500 });
+    return new NextResponse("Internal Server Error", { status: 500 });
   }
 }
