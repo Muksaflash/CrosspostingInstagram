@@ -149,6 +149,6 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error("Publish Error Root Cause:", error);
-    return new NextResponse(error.message, { status: 500 });
+    return new NextResponse("Internal Server Error", { status: 500 });
   }
 }
