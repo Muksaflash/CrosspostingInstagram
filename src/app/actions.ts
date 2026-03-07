@@ -4,6 +4,7 @@
 import { auth } from "@/auth";
 import { firestore } from "@/lib/firebase-admin";
 import { revalidatePath } from "next/cache";
+import { type SocialNetwork } from "@/lib/types";
 
 export async function getUserSettings() {
   const session = await auth();
@@ -63,7 +64,7 @@ export async function getSocialNetworks() {
         _docId: doc.id,
         name: data.name || doc.id,
         ...data,
-      };
+      } as SocialNetwork;
     });
   } catch (e) {
     console.error("Firestore Error (getSocialNetworks):", e);

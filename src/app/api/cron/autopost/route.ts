@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { firestore } from "@/lib/firebase-admin";
 import { safeCompare } from "@/lib/security";
-import { getRecentInstagramPosts } from "@/lib/instagram";
+import { getRecentInstagramPosts, type InstagramPost } from "@/lib/instagram";
+import { type SocialNetwork } from "@/lib/types";
 import { adaptText } from "@/lib/openai";
 import { uploadMediaUrlsToPostMyPost, createPublication } from "@/lib/postmypost";
 import { createCloudinarySlideshowUrl } from "@/lib/cloudinary";
@@ -9,6 +10,33 @@ import { getAutoPostedTracker, addPostToTracker } from "@/app/actions";
 
 export const maxDuration = 300; // Allow 5 mins for cron execution if on Vercel Pro
 export const dynamic = 'force-dynamic'; // Ensure it's not cached
+
+/**
+ * Checks if a post is eligible for auto-posting.
+ */
+function isPostEligible(post: InstagramPost, enabledAtTime: number, trackers: string[]): boolean {
+  const postTimeMs = post.takenAt * 1000;
+  if (postTimeMs < enabledAtTime) return false;
+  if (trackers.includes(post.postKey)) return false;
+  return true;
+}
+
+/**
+ * Comparator to sort posts from oldest to newest.
+ */
+function comparePostsByTakenAt(a: InstagramPost, b: InstagramPost): number {
+  return a.takenAt - b.takenAt;
+}
+
+/**
+ * Maps a Firestore document to a SocialNetwork object.
+ */
+function mapDocToSocialNetwork(doc: any): SocialNetwork {
+  return {
+    _docId: doc.id,
+    ...doc.data()
+  } as SocialNetwork;
+}
 
 export async function GET(req: Request) {
   try {
@@ -116,26 +144,20 @@ export async function GET(req: Request) {
 
       // Filter eligible posts
       const trackers = await getAutoPostedTracker(email);
-      const eligiblePosts = fetchedData.posts.filter((post: any) => {
-        const postTimeMs = post.takenAt * 1000;
-        if (postTimeMs < enabledAtTime) return false;
-        if (trackers.includes(post.postKey)) return false;
-        return true;
-      });
+      const eligiblePosts = fetchedData.posts.filter((post: InstagramPost) =>
+        isPostEligible(post, enabledAtTime, trackers)
+      );
 
       if (eligiblePosts.length === 0) continue;
 
       // We should post them from oldest to newest (to preserve chronological order if multiple are missed)
-      eligiblePosts.sort((a: any, b: any) => a.takenAt - b.takenAt);
+      eligiblePosts.sort(comparePostsByTakenAt);
 
       // Get user's social networks (also stored under users/{email})
       const networksSnapshot = await firestore.collection("users").doc(email).collection("socialNetworks").get();
-      const userNetworks = networksSnapshot.docs.map(doc => ({
-        _docId: doc.id,
-        ...doc.data()
-      })) as any[];
+      const userNetworks = networksSnapshot.docs.map(mapDocToSocialNetwork);
 
-      const activeNetworks = userNetworks.filter(n => n.enabled && n.prompt && n.name.toLowerCase() !== 'instagram');
+      const activeNetworks = userNetworks.filter(n => n.enabled && n.prompt && n.name.toLowerCase() !== "instagram");
       if (activeNetworks.length === 0) continue;
 
       for (const post of eligiblePosts) {
