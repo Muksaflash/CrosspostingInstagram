@@ -273,6 +273,7 @@ export async function GET(req: Request) {
              currentFileIds = fileIdsOriginal;
           }
 
+          if (!net.accountId) continue;
           accountIds.push(net.accountId);
           const pubType = Number(pubSettings.publicationType || 1);
           
