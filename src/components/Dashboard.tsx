@@ -118,7 +118,6 @@ function QuotaWidget({ quotas, fetchQuotas, loading }: any) {
 
 export default function Dashboard({ initialNetworks, initialPost }: { initialNetworks: any[]; initialPost?: any }) {
   const { t, language } = useLanguage();
-  const [mainTab, setMainTab] = useState<'publication' | 'settings'>('publication');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'settings'>('dashboard');
   const [settingsTab, setSettingsTab] = useState<'general' | 'prompts'>('general');
 
@@ -522,57 +521,20 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-center mb-6">
-        <div className="bg-gray-100 dark:bg-zinc-800/50 p-1 rounded-lg inline-flex gap-1 border border-gray-200 dark:border-zinc-700 shadow-sm">
-          <button
-            onClick={() => setMainTab('publication')}
-            className={`px-6 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-              mainTab === 'publication'
-                ? 'bg-white dark:bg-zinc-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-800'
-            }`}
-          >
-            {t('dashboard', 'tabs.publication') || 'Publication'}
-          </button>
-          <button
-            onClick={() => setMainTab('settings')}
-            className={`px-6 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-              mainTab === 'settings'
-                ? 'bg-white dark:bg-zinc-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-800'
-            }`}
-          >
-            {t('dashboard', 'tabs.settings') || 'Networks & Settings'}
-          </button>
-        </div>
-      </div>
-
       <div className="flex justify-between items-center border-b pb-4">
         <div className="flex gap-4">
-          {mainTab === 'publication' && (
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`font-semibold ${activeTab === 'dashboard' ? 'text-black dark:text-white border-b-2 border-black dark:border-white pb-4 -mb-4' : 'text-gray-500 dark:text-gray-400'}`}
-            >
-              {t('dashboard', 'tabs.dashboard')}
-            </button>
-          )}
-          {mainTab === 'settings' && (
-             <>
-               <button
-                 onClick={() => setActiveTab('dashboard')}
-                 className={`font-semibold flex items-center gap-2 ${activeTab === 'dashboard' ? 'text-black dark:text-white border-b-2 border-black dark:border-white pb-4 -mb-4' : 'text-gray-500 dark:text-gray-400'}`}
-               >
-                 <Settings className="w-4 h-4" /> Networks
-               </button>
-               <button
-                 onClick={() => setActiveTab('settings')}
-                 className={`font-semibold flex items-center gap-2 ${activeTab === 'settings' ? 'text-black dark:text-white border-b-2 border-black dark:border-white pb-4 -mb-4' : 'text-gray-500 dark:text-gray-400'}`}
-               >
-                 <Key className="w-4 h-4" /> Global API Settings
-               </button>
-             </>
-          )}
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`font-semibold ${activeTab === 'dashboard' ? 'text-black dark:text-white border-b-2 border-black dark:border-white pb-4 -mb-4' : 'text-gray-500 dark:text-gray-400'}`}
+          >
+            {t('dashboard', 'tabs.dashboard')}
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`font-semibold flex items-center gap-2 ${activeTab === 'settings' ? 'text-black dark:text-white border-b-2 border-black dark:border-white pb-4 -mb-4' : 'text-gray-500 dark:text-gray-400'}`}
+          >
+            <Key className="w-4 h-4" /> {t('dashboard', 'tabs.settings')}
+          </button>
         </div>
         <button
           onClick={() => signOut({ callbackUrl: '/' })}
@@ -582,115 +544,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
         </button>
       </div>
 
-      {mainTab === 'settings' && activeTab === 'dashboard' ? (
-        <div className="space-y-6">
-          <div className="rounded-xl bg-white dark:bg-zinc-900 p-6 shadow-sm">
-            <div className="mb-6 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <h2 className="text-xl font-semibold">{t('dashboard', 'socialNetworks.title')}</h2>
-                <button
-                  onClick={handleOpenAddNetworkModal}
-                  className="flex items-center gap-1 rounded-md bg-gray-100 dark:bg-zinc-800 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:bg-zinc-700 transition-colors"
-                >
-                  <Plus className="h-4 w-4" /> {t('dashboard', 'socialNetworks.addNetwork')}
-                </button>
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              {networks.map((net, idx) => (
-                <div key={net._docId || net.accountId || idx} className={`relative rounded-xl border p-4 transition-all ${net.enabled ? 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700' : 'bg-gray-50 dark:bg-zinc-800 border-gray-100 dark:border-zinc-800 opacity-75'}`}>
-                  <div className="mb-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        className="font-medium bg-transparent border-b border-transparent hover:border-gray-300 dark:border-zinc-600 focus:border-blue-500 focus:outline-none transition-colors max-w-[150px] truncate"
-                        value={net.name}
-                        onChange={(e) => {
-                          const newNet = [...networks];
-                          newNet[idx].name = e.target.value;
-                          setNetworks(newNet);
-                        }}
-                        onBlur={() => {
-                          saveSocialNetwork(net._docId || net.accountId || net.name, networks[idx]);
-                        }}
-                        title="Rename network"
-                      />
-                      {net.status === 'loading' && <RefreshCw className="h-3 w-3 animate-spin text-gray-400" />}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" checked={net.enabled} onChange={() => toggleNetwork(idx)} className="sr-only peer" />
-                      <div className="w-9 h-5 bg-gray-200 dark:bg-zinc-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-zinc-900 after:border-gray-300 dark:border-zinc-600 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                      </label>
-                      <div className="relative">
-                        <button
-                          onClick={() => setExpandedSettingsIdx(expandedSettingsIdx === idx ? null : idx)}
-                          className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:bg-zinc-800 transition-colors"
-                          title={t('dashboard', 'networkCard.settings')}
-                        >
-                          <Settings className="w-4 h-4" />
-                        </button>
-                        {expandedSettingsIdx === idx && (
-                          <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-900 rounded-md shadow-lg border border-gray-100 dark:border-zinc-800 p-1 z-10">
-                            <button
-                              onClick={() => {
-                                setAdvancedSettingsIdx(idx);
-                                setExpandedSettingsIdx(null);
-                              }}
-                              className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-zinc-800 rounded flex items-center gap-2 transition-colors border-b border-gray-100 dark:border-zinc-800 mb-1"
-                            >
-                              <Settings className="w-4 h-4" />
-                              {t('dashboard', 'networkCard.advancedSettings')}
-                            </button>
-                            <button
-                              onClick={() => handleSuggestPrompt(idx)}
-                              className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-zinc-800 rounded flex items-center gap-2 transition-colors border-b border-gray-100 dark:border-zinc-800 mb-1"
-                            >
-                              <Zap className="w-4 h-4 text-amber-500" />
-                              {t('dashboard', 'networkCard.suggestPrompt')}
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (confirm(`{t('dashboard', 'networkCard.deleteNetwork')} ${net.name}?`)) {
-                                  handleDeleteNetwork(idx);
-                                  setExpandedSettingsIdx(null);
-                                }
-                              }}
-                              className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded flex items-center gap-2 transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              {t('dashboard', 'networkCard.deleteNetwork')}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1 mt-4">
-                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">{t('dashboard', 'networkCard.promptLabel')}</label>
-                    <textarea
-                      value={net.prompt || ''}
-                      onChange={(e) => {
-                        const newNet = [...networks];
-                        newNet[idx].prompt = e.target.value;
-                        setNetworks(newNet);
-                      }}
-                      onBlur={() => {
-                        saveSocialNetwork(net._docId || net.accountId || net.name, networks[idx]);
-                      }}
-                      placeholder={t('dashboard', 'networkCard.promptPlaceholder')}
-                      className="w-full rounded-md border border-gray-200 dark:border-zinc-700 p-2 text-xs focus:border-blue-500 focus:outline-none min-h-[60px]"
-                    />
-                  </div>
-
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : mainTab === 'settings' && activeTab === 'settings' ? (
+      {activeTab === 'settings' ? (
         <div className="max-w-2xl bg-white dark:bg-zinc-900 p-6 rounded-xl shadow-sm space-y-6">
           <div className="border-t pt-6">
             <h2 className="text-xl font-bold">{t('dashboard', 'settingsText.title')}</h2>
@@ -845,7 +699,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
             </div>
           )}
         </div>
-      ) : mainTab === 'publication' ? (
+      ) : (
         <div className="space-y-6">
           <QuotaWidget quotas={quotas} fetchQuotas={loadQuotas} loading={quotaLoading} />
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -1015,6 +869,12 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                   <div className="mb-6 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <h2 className="text-xl font-semibold">{t('dashboard', 'socialNetworks.title')}</h2>
+                      <button
+                        onClick={handleOpenAddNetworkModal}
+                        className="flex items-center gap-1 rounded-md bg-gray-100 dark:bg-zinc-800 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:bg-zinc-700 transition-colors"
+                      >
+                        <Plus className="h-4 w-4" /> {t('dashboard', 'socialNetworks.addNetwork')}
+                      </button>
                     </div>
                     <button
                       onClick={handlePublishAll}
@@ -1027,10 +887,8 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
-                    {networks.filter(n => n.enabled).map((net, idx) => {
-                      const realIdx = networks.findIndex(n => n.name === net.name && n.accountId === net.accountId);
-                      return (
-                      <div key={net._docId || net.accountId || realIdx} className={`relative rounded-xl border p-4 transition-all bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700`}>
+                    {networks.map((net, idx) => (
+                      <div key={net._docId || net.accountId || idx} className={`relative rounded-xl border p-4 transition-all ${net.enabled ? 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700' : 'bg-gray-50 dark:bg-zinc-800 border-gray-100 dark:border-zinc-800 opacity-75'}`}>
                         <div className="mb-3 flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <input
@@ -1039,11 +897,11 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                               value={net.name}
                               onChange={(e) => {
                                 const newNet = [...networks];
-                                newNet[realIdx].name = e.target.value;
+                                newNet[idx].name = e.target.value;
                                 setNetworks(newNet);
                               }}
                               onBlur={() => {
-                                saveSocialNetwork(net._docId || net.accountId || net.name, networks[realIdx]);
+                                saveSocialNetwork(net._docId || net.accountId || net.name, networks[idx]);
                               }}
                               title="Rename network"
                             />
@@ -1051,10 +909,50 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                           </div>
                           <div className="flex items-center gap-2">
                             <label className="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" checked={net.enabled} onChange={() => toggleNetwork(realIdx)} className="sr-only peer" />
+                            <input type="checkbox" checked={net.enabled} onChange={() => toggleNetwork(idx)} className="sr-only peer" />
                             <div className="w-9 h-5 bg-gray-200 dark:bg-zinc-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-zinc-900 after:border-gray-300 dark:border-zinc-600 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                             </label>
                             <div className="relative">
+                              <button
+                                onClick={() => setExpandedSettingsIdx(expandedSettingsIdx === idx ? null : idx)}
+                                className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:bg-zinc-800 transition-colors"
+                                title={t('dashboard', 'networkCard.settings')}
+                              >
+                                <Settings className="w-4 h-4" />
+                              </button>
+                              {expandedSettingsIdx === idx && (
+                                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-900 rounded-md shadow-lg border border-gray-100 dark:border-zinc-800 p-1 z-10">
+                                  <button
+                                    onClick={() => {
+                                      setAdvancedSettingsIdx(idx);
+                                      setExpandedSettingsIdx(null);
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-zinc-800 rounded flex items-center gap-2 transition-colors border-b border-gray-100 dark:border-zinc-800 mb-1"
+                                  >
+                                    <Settings className="w-4 h-4" />
+                                    {t('dashboard', 'networkCard.advancedSettings')}
+                                  </button>
+                                  <button
+                                    onClick={() => handleSuggestPrompt(idx)}
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-zinc-800 rounded flex items-center gap-2 transition-colors border-b border-gray-100 dark:border-zinc-800 mb-1"
+                                  >
+                                    <Zap className="w-4 h-4 text-amber-500" />
+                                    {t('dashboard', 'networkCard.suggestPrompt')}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (confirm(`{t('dashboard', 'networkCard.deleteNetwork')} ${net.name}?`)) {
+                                        handleDeleteNetwork(idx);
+                                        setExpandedSettingsIdx(null);
+                                      }
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded flex items-center gap-2 transition-colors"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                    {t('dashboard', 'networkCard.deleteNetwork')}
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1063,7 +961,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                           <div className="space-y-4 pt-4 mt-2 border-t border-gray-100 dark:border-zinc-800">
                             <div className="grid gap-3 sm:grid-cols-2">
                               <button
-                                onClick={() => handleRewriteSingle(realIdx)}
+                                onClick={() => handleRewriteSingle(idx)}
                                 disabled={net.status === 'rewriting' || net.status === 'publishing' || (!post && !net.adaptedText)}
                                 className="flex items-center justify-center gap-2 bg-blue-100 text-blue-700 hover:bg-blue-200 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
                               >
@@ -1071,7 +969,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                 {t('dashboard', 'networkCard.rewrite')}
                               </button>
                               <button
-                                onClick={() => handlePublishSingle(realIdx)}
+                                onClick={() => handlePublishSingle(idx)}
                                 disabled={net.status === 'rewriting' || net.status === 'publishing' || (!post && !net.adaptedText)}
                                 className="flex items-center justify-center gap-2 bg-green-100 text-green-700 hover:bg-green-200 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
                               >
@@ -1086,6 +984,23 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                               <p className="text-green-600 text-xs mt-1 font-medium bg-green-50 p-2 rounded border border-green-100">{t('dashboard', 'networkCard.success')}</p>
                             )}
 
+                            <div className="space-y-1">
+                              <label className="text-xs font-medium text-gray-600 dark:text-gray-400">{t('dashboard', 'networkCard.promptLabel')}</label>
+                              <textarea
+                                value={net.prompt || ''}
+                                onChange={(e) => {
+                                  const newNet = [...networks];
+                                  newNet[idx].prompt = e.target.value;
+                                  setNetworks(newNet);
+                                }}
+                                onBlur={() => {
+                                  saveSocialNetwork(net._docId || net.accountId || net.name, networks[idx]);
+                                }}
+                                placeholder={t('dashboard', 'networkCard.promptPlaceholder')}
+                                className="w-full rounded-md border border-gray-200 dark:border-zinc-700 p-2 text-xs focus:border-blue-500 focus:outline-none min-h-[60px]"
+                              />
+                            </div>
+
                             <div className="space-y-3">
                               <div>
                                 <label className="text-xs font-medium text-gray-600 dark:text-gray-400">{t('dashboard', 'networkCard.titleLabel')}</label>
@@ -1094,11 +1009,11 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                   value={net.adaptedTitle || ''}
                                   onChange={(e) => {
                                     const newNet = [...networks];
-                                    newNet[realIdx].adaptedTitle = e.target.value;
+                                    newNet[idx].adaptedTitle = e.target.value;
                                     setNetworks(newNet);
                                   }}
                                   onBlur={() => {
-                                    saveSocialNetwork(net._docId || net.accountId || net.name, networks[realIdx]);
+                                    saveSocialNetwork(net._docId || net.accountId || net.name, networks[idx]);
                                   }}
                                   placeholder={t('dashboard', 'networkCard.titlePlaceholder')}
                                   className="w-full mt-1 rounded-md border border-gray-200 dark:border-zinc-700 p-2 text-sm focus:border-blue-500 focus:outline-none"
@@ -1110,11 +1025,11 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                   value={net.adaptedText || ''}
                                   onChange={(e) => {
                                     const newNet = [...networks];
-                                    newNet[realIdx].adaptedText = e.target.value;
+                                    newNet[idx].adaptedText = e.target.value;
                                     setNetworks(newNet);
                                   }}
                                   onBlur={() => {
-                                    saveSocialNetwork(net._docId || net.accountId || net.name, networks[realIdx]);
+                                    saveSocialNetwork(net._docId || net.accountId || net.name, networks[idx]);
                                   }}
                                   placeholder={t('dashboard', 'networkCard.adaptedTextPlaceholder')}
                                   className="w-full mt-1 rounded-md border border-gray-200 dark:border-zinc-700 p-2 text-sm focus:border-blue-500 focus:outline-none min-h-[100px]"
@@ -1124,14 +1039,13 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                           </div>
                         )}
                       </div>
-                      );
-                    })}
+                    ))}
                 </div>
               </div>
             </div>
           </div>
         </div>
-      ) : null}
+      )}
 
       {/* Add Network Modal */}
       {isModalOpen && (
