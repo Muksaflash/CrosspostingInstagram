@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# secret configs
+env_vars.yaml
+service.yaml
+new_service.yaml
+*.yaml
