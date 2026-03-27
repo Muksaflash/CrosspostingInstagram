@@ -1,0 +1,1048 @@
+﻿[
+  {
+    "httpRequest": {
+      "latency": "0.104935514s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "2025",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/api/auth/session",
+      "responseSize": "1322",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e59000db9427f21561d",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:51:54.187743064Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "998d7b6820601745",
+    "timestamp": "2026-03-26T19:51:53.793081Z",
+    "trace": "projects/crosspostinginstagram/traces/61d0f808b9064523ea4ca0b9278042e5"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.009248179s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "2025",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/api/auth/session",
+      "responseSize": "1322",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e590008ccde49f52474",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:51:53.853596030Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "729272bd3e4207f0",
+    "timestamp": "2026-03-26T19:51:53.566098Z",
+    "trace": "projects/crosspostinginstagram/traces/451a27e15384e60aea4ca0b927804f6b"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.292464414s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "POST",
+      "requestSize": "2307",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "responseSize": "1289",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e560006bc5118a96805",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:51:50.523561329Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "326bbcffca554a57",
+    "timestamp": "2026-03-26T19:51:50.147460Z",
+    "trace": "projects/crosspostinginstagram/traces/218f2ece00aab791ea4ca0b927804672"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.009620761s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "2025",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/api/auth/session",
+      "responseSize": "1322",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e5600010809ae0199fc",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:51:50.190140319Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "153a46584a6a3415",
+    "timestamp": "2026-03-26T19:51:50.056567Z",
+    "trace": "projects/crosspostinginstagram/traces/9674c90671b6c53eea4ca0b927804bd5"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.056089602s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "POST",
+      "requestSize": "2307",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "responseSize": "1788",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e55000e1a9b0874b806",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:51:50.190140319Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "48649d087f8d213a",
+    "timestamp": "2026-03-26T19:51:49.866838Z",
+    "trace": "projects/crosspostinginstagram/traces/050dd50406f6d0ffea4ca0b927804b1e"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.010962010s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "2025",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/api/auth/session",
+      "responseSize": "1322",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e55000d22baa4451eeb",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:51:50.190140319Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "38f668895da7a3af",
+    "timestamp": "2026-03-26T19:51:49.848290Z",
+    "trace": "projects/crosspostinginstagram/traces/3aa3c8c3bdfd79f7ea4ca0b927804d72"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.130325837s",
+      "protocol": "HTTP/1.1",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "1548",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "responseSize": "7150",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e55000d3427cad6acf6",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:51:50.190140319Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "5594af4e8ccc032c",
+    "timestamp": "2026-03-26T19:51:49.733488Z",
+    "trace": "projects/crosspostinginstagram/traces/0da34d1a96f932ae6803bf1e8e63d6e9"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.006890760s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "2073",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/favicon.ico?favicon.0b3bf435.ico",
+      "responseSize": "26208",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e55000b4b316253ed82",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:51:49.856831833Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "f101246cfd90d2b0",
+    "timestamp": "2026-03-26T19:51:49.731739Z",
+    "trace": "projects/crosspostinginstagram/traces/76685fd9917b824aea4ca0b927804882"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.010526630s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "2025",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/api/auth/session",
+      "responseSize": "1322",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e550009a47775a29c93",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:51:49.856831833Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "941690a55f59614f",
+    "timestamp": "2026-03-26T19:51:49.619793Z",
+    "trace": "projects/crosspostinginstagram/traces/543aacb342642398ea4ca0b9278043b7"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.137765987s",
+      "protocol": "HTTP/1.1",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "2119",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "responseSize": "7150",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e5500078e53fbe5fa04",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:51:49.524329616Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "496739736b11d1db",
+    "timestamp": "2026-03-26T19:51:49.355600Z",
+    "trace": "projects/crosspostinginstagram/traces/1fa28aee190b0addc40faacc147e9180"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.414659475s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "POST",
+      "requestSize": "2055",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "responseSize": "1289",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e51000a5dd76793a894",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:51:45.868309329Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "9655a5edc42d83aa",
+    "timestamp": "2026-03-26T19:51:45.263290Z",
+    "trace": "projects/crosspostinginstagram/traces/9a15af8332cd47a1c40faacc147e9538"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.007361010s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "1772",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/api/auth/session",
+      "responseSize": "1322",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e51000283173bf54fd6",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:51:45.196755780Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "a4e59735c07bf4ef",
+    "timestamp": "2026-03-26T19:51:45.155784Z",
+    "trace": "projects/crosspostinginstagram/traces/689882036499b7e1c40faacc147e9184"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.083035472s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "POST",
+      "requestSize": "2055",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "responseSize": "1788",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e510001083d2d4b3e08",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:51:45.196755780Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "0fd7132bf4e4a332",
+    "timestamp": "2026-03-26T19:51:44.983148Z",
+    "trace": "projects/crosspostinginstagram/traces/2105f2ea10eda4d0c40faacc147e9ce3"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.011477030s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "1772",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/api/auth/session",
+      "responseSize": "1322",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e50000ebeead022f0c3",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:51:45.196755780Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "791f38373bcedf9b",
+    "timestamp": "2026-03-26T19:51:44.953407Z",
+    "trace": "projects/crosspostinginstagram/traces/c9b4d3d9a0bbbfd8c40faacc147e9bf6"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.087273174s",
+      "protocol": "HTTP/1.1",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "1563",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "responseSize": "7150",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e50000d422ae22280c5",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:51:45.196755780Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "5a1063c646b6a5c2",
+    "timestamp": "2026-03-26T19:51:44.779113Z",
+    "trace": "projects/crosspostinginstagram/traces/7fc4f9433490d19a6803bf1e8e63dd46"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.011092270s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "1773",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/api/auth/session",
+      "responseSize": "1322",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e50000b39d8c553dd96",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:51:44.861777117Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "3402681782616047",
+    "timestamp": "2026-03-26T19:51:44.723240Z",
+    "trace": "projects/crosspostinginstagram/traces/6a86145e4577c911c40faacc147e9abc"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.135346983s",
+      "protocol": "HTTP/1.1",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "1848",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "responseSize": "7150",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e500007fc3c2d0d7130",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:51:44.529359138Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "90bed30a544c5a1e",
+    "timestamp": "2026-03-26T19:51:44.380288Z",
+    "trace": "projects/crosspostinginstagram/traces/89fe78aa2d380e82c40faacc147e9e16",
+    "traceSampled": true
+  },
+  {
+    "httpRequest": {
+      "latency": "0.011669841s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "2024",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/api/auth/session",
+      "responseSize": "1322",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e180009dd993b82ab2d",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:50:48.848538644Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "2fd2f7019cf383af",
+    "timestamp": "2026-03-26T19:50:48.633179Z",
+    "trace": "projects/crosspostinginstagram/traces/e67ce2e402960a162aae8f9a1eaf97f8"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.012963811s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "2024",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/api/auth/session",
+      "responseSize": "1322",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e18000667f8edd2d6fa",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:50:48.515525983Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "670953b46ed74999",
+    "timestamp": "2026-03-26T19:50:48.404743Z",
+    "trace": "projects/crosspostinginstagram/traces/d8a99bd5d7addef02aae8f9a1eaf92cd"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.415144578s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "POST",
+      "requestSize": "2307",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "responseSize": "1289",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e13000640451b118623",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:50:43.521957128Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "c1b87d1c11ed503a",
+    "timestamp": "2026-03-26T19:50:42.992791Z",
+    "trace": "projects/crosspostinginstagram/traces/96911caca590c8334636a17fe8ae4c7b"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.019266230s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "2024",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/api/auth/session",
+      "responseSize": "1322",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e12000b9b20c4edb471",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:50:42.854072278Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "02ae0357bbc77145",
+    "timestamp": "2026-03-26T19:50:42.739952Z",
+    "trace": "projects/crosspostinginstagram/traces/394ab5ec34d095d64636a17fe8ae4443"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.063899760s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "POST",
+      "requestSize": "2308",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "responseSize": "1788",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e12000c243a36717bc7",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:50:42.854072278Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "dc3403e6b2a3142d",
+    "timestamp": "2026-03-26T19:50:42.730179Z",
+    "trace": "projects/crosspostinginstagram/traces/83939aa07f4f67b34636a17fe8ae4f44"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.007850260s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "2072",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/favicon.ico?favicon.0b3bf435.ico",
+      "responseSize": "26208",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e120007d78c10d0410b",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:50:42.523849234Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "7b5e28fbed8d9111",
+    "timestamp": "2026-03-26T19:50:42.504525Z",
+    "trace": "projects/crosspostinginstagram/traces/8e0d1f29e9ab8f2b4636a17fe8ae44c5"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.118398230s",
+      "protocol": "HTTP/1.1",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "1563",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "responseSize": "7150",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e1200091bbec3d3180c",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:50:42.854072278Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "2712d17bc7ba0458",
+    "timestamp": "2026-03-26T19:50:42.477035Z",
+    "trace": "projects/crosspostinginstagram/traces/cc763761a4215d3ce4decbceac3f0c5d"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.012191530s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "2024",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/api/auth/session",
+      "responseSize": "1322",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e1200074b5964693b6a",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:50:42.523849234Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "bd886c0710d17c08",
+    "timestamp": "2026-03-26T19:50:42.464375Z",
+    "trace": "projects/crosspostinginstagram/traces/4e15bf04ee5342824636a17fe8ae40b9"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.136766359s",
+      "protocol": "HTTP/1.1",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "2118",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "responseSize": "7150",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e120002acf55585784f",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:50:42.187453975Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "eede36b241ae6cf6",
+    "timestamp": "2026-03-26T19:50:42.036897Z",
+    "trace": "projects/crosspostinginstagram/traces/c2280505125864054636a17fe8ae4eb4"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.023637080s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "1773",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/api/auth/session",
+      "responseSize": "1322",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e110001f0ef85fd49d0",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:50:41.192814741Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "41941c6ba745ac86",
+    "timestamp": "2026-03-26T19:50:41.101811Z",
+    "trace": "projects/crosspostinginstagram/traces/9a73b9d02a288cf44636a17fe8ae47b1"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.009285670s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "GET",
+      "requestSize": "1787",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/api/auth/session",
+      "responseSize": "1322",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58e10000cfaa15e0e532b",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:50:40.856654756Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "3fea01b98d675524",
+    "timestamp": "2026-03-26T19:50:40.835229Z",
+    "trace": "projects/crosspostinginstagram/traces/fa5c41df9a74e0bd4636a17fe8ae4e76",
+    "traceSampled": true
+  },
+  {
+    "httpRequest": {
+      "latency": "0.531606901s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "POST",
+      "requestSize": "2307",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "responseSize": "1289",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58dbc0001095990efc5c8",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:49:16.292807363Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "8e740914a2829b44",
+    "timestamp": "2026-03-26T19:49:15.534390Z",
+    "trace": "projects/crosspostinginstagram/traces/c846c5fda4d0374ef6fb4c6c1093aa08"
+  },
+  {
+    "httpRequest": {
+      "latency": "0.132592688s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "remoteIp": "217.76.11.205",
+      "requestMethod": "POST",
+      "requestSize": "2307",
+      "requestUrl": "https://instagram-automation-412412438508.us-central1.run.app/",
+      "responseSize": "1788",
+      "serverIp": "34.143.76.2",
+      "status": 200,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c58dbb00050fb40239d5cb",
+    "labels": {
+      "instanceId": "008c15ff0820c2900ef40ac1e77bd6576a4d5b1f3641130da8e47cbeea37af84eff7f3ce5e1674fc63bc92a49b3d51a815145f64f59118aa6bb995d2c29d7bda0db33c8912bca2e4df7fc06f830c"
+    },
+    "logName": "projects/crosspostinginstagram/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-26T19:49:15.629578397Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "instagram-automation",
+        "location": "us-central1",
+        "project_id": "crosspostinginstagram",
+        "revision_name": "instagram-automation-00037-h66",
+        "service_name": "instagram-automation"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "spanId": "15b5f9fde2e870a8",
+    "timestamp": "2026-03-26T19:49:15.196963Z",
+    "trace": "projects/crosspostinginstagram/traces/f8bb445325cacdfdf6fb4c6c1093a774"
+  }
+]

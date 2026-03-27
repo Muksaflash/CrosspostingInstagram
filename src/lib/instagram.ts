@@ -4,6 +4,47 @@ const RAPIDAPI_HOST = 'instagram120.p.rapidapi.com';
 const API_ENDPOINT = 'https://instagram120.p.rapidapi.com/api/instagram/links';
 const API_MEDIA_BY_SHORTCODE_ENDPOINT = '/api/instagram/mediaByShortcode';
 
+/**
+ * Randomizes the case of each letter in the Instagram username
+ * to bypass RapidAPI's response cache. Instagram usernames are
+ * case-insensitive, but the API caches by exact URL string.
+ */
+function jitterInstagramUsernameCase(url: string): string {
+  if (!url) return url;
+
+  const marker = 'instagram.com/';
+  const idx = url.indexOf(marker);
+  if (idx === -1) return url;
+
+  const prefix = url.substring(0, idx + marker.length);
+  const rest = url.substring(idx + marker.length);
+
+  let cut = rest.length;
+  const slashIdx = rest.indexOf('/');
+  if (slashIdx !== -1 && slashIdx < cut) cut = slashIdx;
+  const qIdx = rest.indexOf('?');
+  if (qIdx !== -1 && qIdx < cut) cut = qIdx;
+
+  const username = rest.substring(0, cut);
+  const suffix = rest.substring(cut);
+
+  if (!username) return url;
+
+  const newUsername = username
+    .split('')
+    .map((ch) => {
+      if (/[a-zA-Z]/.test(ch)) {
+        return Math.random() < 0.5 ? ch.toLowerCase() : ch.toUpperCase();
+      }
+      return ch;
+    })
+    .join('');
+
+  const newUrl = prefix + newUsername + suffix;
+  console.log('[Instagram] Cache-bust URL:', newUrl);
+  return newUrl;
+}
+
 export interface InstagramPost {
   postKey: string;
   shortcode: string;
@@ -31,7 +72,7 @@ export async function getLatestInstagramPost(usernameUrl: string, rapidApiKey: s
       'x-rapidapi-key': rapidApiKey,
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     },
-    body: JSON.stringify({ url: usernameUrl }),
+    body: JSON.stringify({ url: jitterInstagramUsernameCase(usernameUrl) }),
   });
 
   if (!res.ok) {
@@ -71,7 +112,7 @@ export async function getRecentInstagramPosts(usernameUrl: string, rapidApiKey: 
       'x-rapidapi-key': rapidApiKey,
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     },
-    body: JSON.stringify({ url: usernameUrl }),
+    body: JSON.stringify({ url: jitterInstagramUsernameCase(usernameUrl) }),
   });
 
   if (!res.ok) {

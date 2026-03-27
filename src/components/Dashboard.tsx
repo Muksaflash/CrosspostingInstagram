@@ -163,6 +163,11 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
   const [advancedSettingsIdx, setAdvancedSettingsIdx] = useState<number | null>(null);
 
   useEffect(() => {
+    // Always load settings on mount to restore auto-post toggle state
+    loadSettings();
+  }, []);
+
+  useEffect(() => {
     if (activeTab === 'settings') {
       loadSettings();
     } else if (activeTab === 'dashboard') {

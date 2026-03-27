@@ -25,3 +25,86 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ── react-datepicker mobile fixes ── */
+
+/* Ensure the wrapper doesn't overflow its container */
+.react-datepicker-wrapper {
+  width: 100%;
+}
+
+/* Popper z-index so it floats above images/cards */
+.react-datepicker-popper {
+  z-index: 50 !important;
+}
+
+/* On small screens make the whole calendar fit */
+@media (max-width: 480px) {
+  /* Use fixed positioning so the calendar is always fully visible */
+  .react-datepicker-popper {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    z-index: 9999 !important;
+  }
+
+  /* Semi-transparent backdrop */
+  .react-datepicker-popper::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: -1;
+  }
+
+  /* Arrow is meaningless when centered – hide it */
+  .react-datepicker__triangle {
+    display: none !important;
+  }
+
+  /* Size the calendar container to fit small screens */
+  .react-datepicker {
+    font-size: 0.85rem;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  }
+
+  /* Shrink day cells for narrow widths */
+  .react-datepicker__day,
+  .react-datepicker__day-name {
+    width: 2rem;
+    line-height: 2rem;
+    margin: 0.15rem;
+  }
+
+  /* Compact the time list */
+  .react-datepicker__time-container {
+    width: 80px;
+  }
+
+  .react-datepicker__time-container
+    .react-datepicker__time
+    .react-datepicker__time-box {
+    width: 80px;
+  }
+
+  .react-datepicker__time-list-item {
+    font-size: 0.8rem;
+    padding: 4px 8px !important;
+  }
+
+  /* Header compaction */
+  .react-datepicker__header {
+    padding-top: 6px;
+  }
+
+  .react-datepicker__current-month {
+    font-size: 0.9rem;
+  }
+
+  .react-datepicker__navigation {
+    top: 6px;
+  }
+}
