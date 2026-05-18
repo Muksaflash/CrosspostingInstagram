@@ -22,10 +22,14 @@ export async function GET(req: Request) {
     let totalVideosDeleted = 0;
 
     for (const userDoc of usersSnapshot.docs) {
-      const email = userDoc.id;
+      const userData = userDoc.data();
+      const email = userData?.email || userDoc.id;
+      if (!email || !email.includes("@")) {
+        continue;
+      }
       
       // Get user settings
-      const settingsSnapshot = await userDoc.ref.collection("settings").get();
+      const settingsSnapshot = await firestore.collection("users").doc(email).collection("settings").get();
       const settings: Record<string, string> = {};
       settingsSnapshot.forEach(doc => {
         settings[doc.id] = doc.data().value;

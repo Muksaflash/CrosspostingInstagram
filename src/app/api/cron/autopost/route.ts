@@ -273,12 +273,14 @@ export async function GET(req: Request) {
              currentFileIds = fileIdsOriginal;
           }
 
-          if (!net.accountId) continue;
-          accountIds.push(net.accountId);
+          const accountId = net.accountId;
+          if (!accountId) continue;
+
+          accountIds.push(accountId);
           const pubType = Number(pubSettings.publicationType || 1);
           
           const detail: any = {
-            account_id: net.accountId,
+            account_id: accountId,
             publication_type: pubType,
             content: net.adaptedText || post.caption || '',
             file_ids: currentFileIds

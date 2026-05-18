@@ -6,14 +6,34 @@ import { firestore } from "@/lib/firebase-admin";
 import { revalidatePath } from "next/cache";
 import { type SocialNetwork } from "@/lib/types";
 
-export async function getUserSettings() {
+async function getCurrentUserDataKey(): Promise<string | null> {
   const session = await auth();
-  if (!session?.user?.email) return null;
+  const sessionEmail = session?.user?.email;
+  const userId = session?.user?.id;
+
+  if (userId) {
+    try {
+      const userDoc = await firestore.collection("users").doc(userId).get();
+      const canonicalEmail = userDoc.data()?.email;
+      if (typeof canonicalEmail === "string" && canonicalEmail.includes("@")) {
+        return canonicalEmail;
+      }
+    } catch (e) {
+      console.error("Firestore Error (getCurrentUserDataKey):", e);
+    }
+  }
+
+  return sessionEmail || null;
+}
+
+export async function getUserSettings() {
+  const userDataKey = await getCurrentUserDataKey();
+  if (!userDataKey) return null;
 
   try {
     const snapshot = await firestore
       .collection("users")
-      .doc(session.user.email)
+      .doc(userDataKey)
       .collection("settings")
       .get();
 
@@ -30,13 +50,13 @@ export async function getUserSettings() {
 }
 
 export async function saveUserSetting(key: string, value: string) {
-  const session = await auth();
-  if (!session?.user?.email) throw new Error("Unauthorized");
+  const userDataKey = await getCurrentUserDataKey();
+  if (!userDataKey) throw new Error("Unauthorized");
 
   try {
     await firestore
       .collection("users")
-      .doc(session.user.email)
+      .doc(userDataKey)
       .collection("settings")
       .doc(key)
       .set({ value });
@@ -48,13 +68,13 @@ export async function saveUserSetting(key: string, value: string) {
 }
 
 export async function getSocialNetworks() {
-  const session = await auth();
-  if (!session?.user?.email) return [];
+  const userDataKey = await getCurrentUserDataKey();
+  if (!userDataKey) return [];
 
   try {
     const snapshot = await firestore
       .collection("users")
-      .doc(session.user.email)
+      .doc(userDataKey)
       .collection("socialNetworks")
       .get();
 
@@ -76,8 +96,8 @@ export async function saveSocialNetwork(
   docId: string,
   data: Record<string, any>
 ) {
-  const session = await auth();
-  if (!session?.user?.email) throw new Error("Unauthorized");
+  const userDataKey = await getCurrentUserDataKey();
+  if (!userDataKey) throw new Error("Unauthorized");
 
   // Ensure docId is a string
   const safeDocId = String(docId);
@@ -85,7 +105,7 @@ export async function saveSocialNetwork(
   try {
     await firestore
       .collection("users")
-      .doc(session.user.email)
+      .doc(userDataKey)
       .collection("socialNetworks")
       .doc(safeDocId)
       .set(data, { merge: true });
@@ -97,8 +117,8 @@ export async function saveSocialNetwork(
 }
 
 export async function fetchLatestPost(link?: string) {
-  const session = await auth();
-  if (!session?.user?.email) throw new Error("Unauthorized");
+  const userDataKey = await getCurrentUserDataKey();
+  if (!userDataKey) throw new Error("Unauthorized");
 
   const settings = await getUserSettings();
   const rapidApiKey = settings?.RAPIDAPI_KEY;
@@ -123,14 +143,14 @@ export async function fetchLatestPost(link?: string) {
   }
 
   // Persist the fetched post so it survives hot reloads
-  if (session.user.email) {
+  if (userDataKey) {
     try {
       if (quota) {
         const lastUpdated = Date.now();
         const resetEpochMs = quota.resetSeconds > 0 ? (lastUpdated + quota.resetSeconds * 1000) : 0;
         await firestore
           .collection("users")
-          .doc(session.user.email)
+          .doc(userDataKey)
           .collection("cache")
           .doc("instagramQuota")
           .set({ limit: quota.limit, remaining: quota.remaining, resetEpochMs, lastUpdated, resetSeconds: quota.resetSeconds });
@@ -138,7 +158,7 @@ export async function fetchLatestPost(link?: string) {
       if (postResult) {
         await firestore
           .collection("users")
-          .doc(session.user.email)
+          .doc(userDataKey)
           .collection("cache")
           .doc("lastPost")
           .set(postResult);
@@ -152,13 +172,13 @@ export async function fetchLatestPost(link?: string) {
 }
 
 export async function getLastPost() {
-  const session = await auth();
-  if (!session?.user?.email) return null;
+  const userDataKey = await getCurrentUserDataKey();
+  if (!userDataKey) return null;
 
   try {
     const doc = await firestore
       .collection("users")
-      .doc(session.user.email)
+      .doc(userDataKey)
       .collection("cache")
       .doc("lastPost")
       .get();
@@ -224,13 +244,13 @@ export async function adaptPostText(text: string, prompt: string, mainPrompt: st
 }
 
 export async function deleteSocialNetwork(docId: string) {
-  const session = await auth();
-  if (!session?.user?.email) throw new Error("Unauthorized");
+  const userDataKey = await getCurrentUserDataKey();
+  if (!userDataKey) throw new Error("Unauthorized");
 
   try {
     await firestore
       .collection("users")
-      .doc(session.user.email)
+      .doc(userDataKey)
       .collection("socialNetworks")
       .doc(docId)
       .delete();
@@ -295,8 +315,8 @@ function calculateCloudinaryRefreshDate(regDateStr: string): string {
 }
 
 export async function getQuotas() {
-  const session = await auth();
-  if (!session?.user?.email) throw new Error("Unauthorized");
+  const userDataKey = await getCurrentUserDataKey();
+  if (!userDataKey) throw new Error("Unauthorized");
 
   const settings = await getUserSettings();
 
@@ -311,7 +331,7 @@ export async function getQuotas() {
     if (settings?.RAPIDAPI_KEY) {
       const doc = await firestore
         .collection("users")
-        .doc(session.user.email)
+        .doc(userDataKey)
         .collection("cache")
         .doc("instagramQuota")
         .get();
