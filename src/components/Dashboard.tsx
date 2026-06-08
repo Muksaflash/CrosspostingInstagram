@@ -129,6 +129,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
   
   const [post, setPost] = useState<InstagramPost | null>(initialPost || null);
   const [loading, setLoading] = useState(false);
+  const [publishingAll, setPublishingAll] = useState(false);
   const [fetchLink, setFetchLink] = useState("");
   const [scheduleDate, setScheduleDate] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -320,6 +321,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
   };
   
   const handlePublishAll = async () => {
+    if (publishingAll) return;
     if (!post?.mediaUrls || !post.mediaUrls.length) {
       alert("Нет медиа файлов для публикации");
       return;
@@ -348,6 +350,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
       if (idx !== -1) newNetworks[idx].status = 'publishing';
     });
     setNetworks([...newNetworks]);
+    setPublishingAll(true);
 
     try {
       const res = await fetch("/api/postmypost/publish", {
@@ -357,6 +360,8 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
           networks: networksWithPinLink,
           mediaUrls: post.mediaUrls,
           originalCaption: post.caption,
+          postKey: post.postKey,
+          postUrl: post.postUrl,
           postAt: scheduleDate ? new Date(scheduleDate).toISOString() : undefined
         })
       });
@@ -365,10 +370,26 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
         throw new Error(await res.text());
       }
 
+      let responseBody: { skippedDuplicates?: unknown[]; publishedAccounts?: unknown[] } | null = null;
+      try {
+        responseBody = await res.json();
+      } catch {}
+
       enabledNetworks.forEach(net => {
         const idx = newNetworks.findIndex(n => n === net);
         if (idx !== -1) newNetworks[idx].status = 'success';
       });
+      const skippedCount = responseBody?.skippedDuplicates?.length || 0;
+      const publishedCount = responseBody?.publishedAccounts?.length ?? enabledNetworks.length;
+      if (skippedCount) {
+        if (!publishedCount) {
+          alert('Already published. Duplicate publication skipped.');
+        } else {
+          alert(`Published. ${skippedCount} duplicate account(s) skipped.`);
+        }
+        setNetworks([...newNetworks]);
+        return;
+      }
       alert('Успешно опубликовано!');
     } catch (err: any) {
       console.error(err);
@@ -380,6 +401,8 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
         }
       });
       alert('Ошибка публикации: ' + err.message);
+    } finally {
+      setPublishingAll(false);
     }
     setNetworks([...newNetworks]);
   };
@@ -467,6 +490,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
   };
 
   const handlePublishSingle = async (index: number) => {
+    if (networks[index]?.status === 'publishing') return;
     if (!post?.mediaUrls || !post.mediaUrls.length) {
       alert("Нет медиа файлов для публикации");
       return;
@@ -492,6 +516,8 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
           networks: [netToPublish],
           mediaUrls: post.mediaUrls,
           originalCaption: post.caption,
+          postKey: post.postKey,
+          postUrl: post.postUrl,
           postAt: scheduleDate ? new Date(scheduleDate).toISOString() : undefined
         })
       });
@@ -883,10 +909,10 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                     </div>
                     <button
                       onClick={handlePublishAll}
-                      disabled={!post}
+                      disabled={!post || publishingAll}
                       className="rounded-lg bg-green-600 px-6 py-2 text-white hover:bg-green-700 flex items-center gap-2 disabled:opacity-50"
                     >
-                      <Send className="h-4 w-4" />
+                      {publishingAll ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                       {t('dashboard', 'socialNetworks.publishAll')}
                     </button>
                   </div>

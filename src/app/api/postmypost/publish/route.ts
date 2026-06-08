@@ -3,21 +3,162 @@ import { auth } from "@/auth";
 import { getUserSettings } from "@/app/actions";
 import { uploadMediaUrlsToPostMyPost, createPublication } from "@/lib/postmypost";
 import { createCloudinarySlideshowUrl } from "@/lib/cloudinary";
+import { firestore } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
+import type { DocumentReference } from "firebase-admin/firestore";
+import crypto from "crypto";
+
+type PublishNetwork = {
+  accountId?: string | number;
+  name?: string;
+  platform?: string;
+  adaptedText?: string;
+  adaptedTitle?: string;
+  publishingSettings?: {
+    slideshowMode?: "auto" | "always" | "never" | string[];
+    contentFilter?: "none" | "only_reels" | "exclude_reels" | string[];
+    publicationType?: number | string;
+    tiktokPrivacyStatus?: number;
+    tiktokComment?: boolean;
+    tiktokDuet?: boolean;
+    tiktokStitch?: boolean;
+    pinterestLink?: string;
+  };
+};
+
+type PublicationCandidate = {
+  net: PublishNetwork;
+  accountId: string;
+  accountIdValue: string | number;
+  lockId: string;
+  lockRef: DocumentReference;
+};
+
+type AuthSession = {
+  user?: {
+    email?: string | null;
+    id?: string | null;
+  };
+} | null;
+
+function sha256(input: string): string {
+  return crypto.createHash("sha256").update(input).digest("hex");
+}
+
+function normalizePostIdentity(postKey: unknown, postUrl: unknown, mediaUrls: string[]): string {
+  const key = typeof postKey === "string" ? postKey.trim() : "";
+  if (key) return `postKey:${key}`;
+
+  const url = typeof postUrl === "string" ? postUrl.trim() : "";
+  if (url) return `postUrl:${url}`;
+
+  return `media:${sha256(JSON.stringify(mediaUrls || []))}`;
+}
+
+async function getSessionUserDataKey(session: AuthSession): Promise<string | null> {
+  const sessionEmail = session?.user?.email;
+  const userId = session?.user?.id;
+
+  if (userId) {
+    try {
+      const userDoc = await firestore.collection("users").doc(userId).get();
+      const canonicalEmail = userDoc.data()?.email;
+      if (typeof canonicalEmail === "string" && canonicalEmail.includes("@")) {
+        return canonicalEmail;
+      }
+    } catch (e) {
+      console.error("Firestore Error (publish getSessionUserDataKey):", e);
+    }
+  }
+
+  return sessionEmail || null;
+}
+
+async function claimPublicationLocks(candidates: PublicationCandidate[]) {
+  return firestore.runTransaction(async (tx) => {
+    const claimed: PublicationCandidate[] = [];
+    const skippedDuplicates: Array<{ accountId: string; networkName: string; status: string }> = [];
+
+    const snapshots = await Promise.all(candidates.map((candidate) => tx.get(candidate.lockRef)));
+
+    snapshots.forEach((snapshot, index) => {
+      const candidate = candidates[index];
+      const data = snapshot.exists ? snapshot.data() : null;
+      const status = typeof data?.status === "string" ? data.status : "";
+
+      if (status === "pending" || status === "published") {
+        skippedDuplicates.push({
+          accountId: candidate.accountId,
+          networkName: candidate.net?.name || candidate.accountId,
+          status,
+        });
+        return;
+      }
+
+      tx.set(candidate.lockRef, {
+        accountId: candidate.accountId,
+        networkName: candidate.net?.name || "",
+        status: "pending",
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      claimed.push(candidate);
+    });
+
+    return { claimed, skippedDuplicates };
+  });
+}
+
+async function markPublicationLocks(
+  candidates: PublicationCandidate[],
+  status: "published" | "failed",
+  extra: Record<string, unknown> = {}
+) {
+  if (!candidates.length) return;
+
+  const batch = firestore.batch();
+  for (const candidate of candidates) {
+    batch.set(
+      candidate.lockRef,
+      {
+        status,
+        updatedAt: FieldValue.serverTimestamp(),
+        ...extra,
+      },
+      { merge: true }
+    );
+  }
+  await batch.commit();
+}
 
 export async function POST(req: Request) {
+  let claimedLocks: PublicationCandidate[] = [];
+  let publicationAttemptStarted = false;
+
   try {
     const session = await auth();
     if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
 
-    const body = await req.json();
-    const { networks, mediaUrls, originalCaption, postAt } = body;
+    const body = await req.json() as {
+      networks?: PublishNetwork[];
+      mediaUrls?: string[];
+      originalCaption?: string;
+      postAt?: string;
+      postKey?: unknown;
+      postUrl?: unknown;
+    };
+    const { networks, mediaUrls, originalCaption, postAt, postKey, postUrl } = body;
 
     const settings = await getUserSettings();
     const token = settings?.POSTMYPOST_TOKEN;
     const projectId = Number(settings?.POSTMYPOST_PROJECT_ID);
+    const userDataKey = await getSessionUserDataKey(session);
 
     if (!token || !projectId) {
       return new NextResponse("PostMyPost Token or Project ID not configured", { status: 400 });
+    }
+    if (!userDataKey) {
+      return new NextResponse("Unable to resolve current user", { status: 401 });
     }
 
     if (!networks || !networks.length) {
@@ -36,10 +177,24 @@ export async function POST(req: Request) {
     let fileIdsOriginal: string[] | null = null;
     let fileIdsSlideshow: string[] | null = null;
 
-    const accountIds: string[] = [];
-    const details: any[] = [];
+    const accountIds: Array<string | number> = [];
+    const details: Array<Record<string, unknown>> = [];
+    const candidates: PublicationCandidate[] = [];
+    const duplicateAccountIds = new Set<string>();
+    const seenAccountIds = new Set<string>();
+    const postIdentity = normalizePostIdentity(postKey, postUrl, mediaUrls);
 
     for (const net of networks) {
+      const rawAccountId = net.accountId;
+      const accountId = rawAccountId === undefined || rawAccountId === null ? "" : String(rawAccountId).trim();
+      if (!accountId) continue;
+      const accountIdValue = rawAccountId === undefined || rawAccountId === null ? accountId : rawAccountId;
+      if (seenAccountIds.has(accountId)) {
+        duplicateAccountIds.add(accountId);
+        continue;
+      }
+      seenAccountIds.add(accountId);
+
       const pubSettings = net.publishingSettings || {};
       
       const isSingleImage = !hasVideo && mediaUrls.length === 1;
@@ -58,6 +213,50 @@ export async function POST(req: Request) {
       if (isPhotoCarousel && !filters.includes('carousel')) continue;
       if (isMixed && !filters.includes('mixed_carousel')) continue;
 
+      const lockId = sha256(JSON.stringify([userDataKey, projectId, accountId, postIdentity]));
+      candidates.push({
+        net,
+        accountId,
+        accountIdValue,
+        lockId,
+        lockRef: firestore
+          .collection("users")
+          .doc(userDataKey)
+          .collection("publicationLocks")
+          .doc(lockId),
+      });
+    }
+
+    if (candidates.length === 0) {
+      return new NextResponse("All networks were skipped due to content filters or missing accounts", { status: 400 });
+    }
+
+    const { claimed, skippedDuplicates } = await claimPublicationLocks(candidates);
+    claimedLocks = claimed;
+
+    for (const accountId of duplicateAccountIds) {
+      skippedDuplicates.push({
+        accountId,
+        networkName: accountId,
+        status: "duplicate_in_request",
+      });
+    }
+
+    if (claimed.length === 0) {
+      return NextResponse.json({
+        status: "skipped",
+        message: "This post was already published to the selected accounts.",
+        skippedDuplicates,
+      });
+    }
+
+    for (const candidate of claimed) {
+      const net = candidate.net;
+      const pubSettings = net.publishingSettings || {};
+
+      const isSingleImage = !hasVideo && mediaUrls.length === 1;
+      const isPhotoCarousel = !hasVideo && mediaUrls.length > 1;
+
       // Slideshow Mode
       let mode = pubSettings.slideshowMode || 'auto';
       let useSlideshow = false;
@@ -65,7 +264,7 @@ export async function POST(req: Request) {
       const isAuto = !Array.isArray(mode) && mode !== 'never' && mode !== 'always';
 
       if (isAuto) {
-        const platform = (net.platform || net.name).toLowerCase();
+        const platform = (net.platform || net.name || '').toLowerCase();
         if (['reddit', 'tiktok', 'reels', 'youtube'].some(p => platform.includes(p))) {
           if (mediaUrls.length > 1) useSlideshow = true;
         } else if (['linkedin', 'pinterest'].some(p => platform.includes(p))) {
@@ -104,12 +303,12 @@ export async function POST(req: Request) {
         currentFileIds = fileIdsOriginal;
       }
 
-      accountIds.push(net.accountId);
+      accountIds.push(candidate.accountIdValue);
 
       const pubType = Number(pubSettings.publicationType || 1);
       
-      const detail: any = {
-        account_id: net.accountId,
+      const detail: Record<string, unknown> = {
+        account_id: candidate.accountIdValue,
         publication_type: pubType,
         content: net.adaptedText || originalCaption || '',
         file_ids: currentFileIds
@@ -118,11 +317,11 @@ export async function POST(req: Request) {
       if (net.adaptedTitle) detail.title = net.adaptedTitle;
       
       const effectivePinLink = pubSettings.pinterestLink || settings?.PINTEREST_LINK || '';
-      if (effectivePinLink && (net.platform || net.name).toLowerCase().includes('pinterest')) {
+      if (effectivePinLink && (net.platform || net.name || '').toLowerCase().includes('pinterest')) {
         detail.link = effectivePinLink;
       }
 
-      if ((net.platform || net.name).toLowerCase().includes('tiktok')) {
+      if ((net.platform || net.name || '').toLowerCase().includes('tiktok')) {
         detail.tiktok_privacy_status = pubSettings.tiktokPrivacyStatus ?? 1;
         detail.tiktok_comment = pubSettings.tiktokComment ?? true;
         detail.tiktok_duet = pubSettings.tiktokDuet ?? true;
@@ -133,10 +332,13 @@ export async function POST(req: Request) {
     }
 
     if (details.length === 0) {
+      await markPublicationLocks(claimedLocks, "failed", {
+        failureReason: "All claimed networks were skipped while building details",
+      });
       return new NextResponse("All networks were skipped due to content filters", { status: 400 });
     }
 
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       project_id: projectId,
       account_ids: accountIds,
       publication_status: 5,
@@ -144,10 +346,32 @@ export async function POST(req: Request) {
       details: details
     };
 
+    publicationAttemptStarted = true;
     const pubRes = await createPublication(payload, token);
-    return NextResponse.json(pubRes);
+    await markPublicationLocks(claimedLocks, "published", {
+      postIdentity,
+      postKey: typeof postKey === "string" ? postKey : "",
+      postUrl: typeof postUrl === "string" ? postUrl : "",
+      publicationId: pubRes?.id || pubRes?.data?.id || "",
+    });
 
-  } catch (error: any) {
+    return NextResponse.json({
+      ...pubRes,
+      skippedDuplicates,
+      publishedAccounts: claimed.map((candidate) => ({
+        accountId: candidate.accountId,
+        networkName: candidate.net?.name || candidate.accountId,
+      })),
+    });
+
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (claimedLocks.length) {
+      await markPublicationLocks(claimedLocks, "failed", {
+        failureReason: errorMessage,
+        publicationAttemptStarted,
+      }).catch((lockErr) => console.error("Failed to update publication locks:", lockErr));
+    }
     console.error("Publish Error Root Cause:", error);
     return new NextResponse("Internal Server Error", { status: 500 });
   }
