@@ -41,6 +41,17 @@ type AuthSession = {
   };
 } | null;
 
+class PublishRouteError extends Error {
+  code: string;
+  status: number;
+
+  constructor(code: string, message: string, status = 500) {
+    super(message);
+    this.code = code;
+    this.status = status;
+  }
+}
+
 function sha256(input: string): string {
   return crypto.createHash("sha256").update(input).digest("hex");
 }
@@ -290,7 +301,11 @@ export async function POST(req: Request) {
             apiSecret: settings.CLOUDINARY_API_SECRET
           };
           if (!cloudinaryConf.cloudName || !cloudinaryConf.apiKey || !cloudinaryConf.apiSecret) {
-            throw new Error(`Cloudinary settings missing for slideshow generation (required for ${net.name})`);
+            throw new PublishRouteError(
+              "SLIDESHOW_SERVICE_NOT_CONFIGURED",
+              `Cloudinary settings missing for slideshow generation (required for ${net.name})`,
+              400
+            );
           }
           try {
             const slideUrl = await createCloudinarySlideshowUrl(mediaUrls, cloudinaryConf);
@@ -298,19 +313,14 @@ export async function POST(req: Request) {
           } catch (slideErr: unknown) {
             const message = slideErr instanceof Error ? slideErr.message : String(slideErr);
             console.error(`Slideshow creation failed for ${net.name || candidate.accountId}:`, message);
-            if (!fileIdsOriginal) {
-              fileIdsOriginal = await uploadMediaUrlsToPostMyPost(mediaUrls, token, projectId);
-            }
-            currentFileIds = fileIdsOriginal;
+            throw new PublishRouteError(
+              "SLIDESHOW_CREATION_FAILED",
+              "Cloudinary slideshow creation failed",
+              502
+            );
           }
         }
-        if (fileIdsSlideshow) currentFileIds = fileIdsSlideshow;
-        else if (!currentFileIds.length) {
-          if (!fileIdsOriginal) {
-            fileIdsOriginal = await uploadMediaUrlsToPostMyPost(mediaUrls, token, projectId);
-          }
-          currentFileIds = fileIdsOriginal;
-        }
+        currentFileIds = fileIdsSlideshow;
       } else {
         if (!fileIdsOriginal) {
           fileIdsOriginal = await uploadMediaUrlsToPostMyPost(mediaUrls, token, projectId);
@@ -388,6 +398,15 @@ export async function POST(req: Request) {
       }).catch((lockErr) => console.error("Failed to update publication locks:", lockErr));
     }
     console.error("Publish Error Root Cause:", error);
+    if (error instanceof PublishRouteError) {
+      return NextResponse.json(
+        {
+          code: error.code,
+          message: error.message,
+        },
+        { status: error.status }
+      );
+    }
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }

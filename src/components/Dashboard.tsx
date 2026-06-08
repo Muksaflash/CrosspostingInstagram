@@ -319,6 +319,46 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
     await Promise.all(promises);
     setNetworks([...newNetworks]);
   };
+
+  type PublishErrorResponse = {
+    code?: string;
+    message?: string;
+  };
+
+  const readPublishError = async (res: Response): Promise<PublishErrorResponse> => {
+    const text = await res.text();
+    try {
+      const parsed = JSON.parse(text);
+      return {
+        code: typeof parsed?.code === 'string' ? parsed.code : undefined,
+        message: typeof parsed?.message === 'string' ? parsed.message : text
+      };
+    } catch {
+      return { message: text };
+    }
+  };
+
+  const getPublishErrorMessage = (error: PublishErrorResponse) => {
+    if (error.code === 'SLIDESHOW_CREATION_FAILED') {
+      return language === 'ru'
+        ? 'Не получилось создать слайдшоу: ошибка подключенного сервиса Cloudinary. Попробуйте ещё раз. Если ошибка повторится, обратитесь к администратору.'
+        : 'Could not create the slideshow: the connected Cloudinary service returned an error. Please try again. If the error repeats, contact the administrator.';
+    }
+
+    if (error.code === 'SLIDESHOW_SERVICE_NOT_CONFIGURED') {
+      return language === 'ru'
+        ? 'Не получилось создать слайдшоу: сервис Cloudinary не настроен. Проверьте настройки или обратитесь к администратору.'
+        : 'Could not create the slideshow: Cloudinary is not configured. Check the settings or contact the administrator.';
+    }
+
+    if (error.message && error.message !== 'Internal Server Error') {
+      return error.message;
+    }
+
+    return language === 'ru'
+      ? 'Не удалось опубликовать пост. Попробуйте ещё раз. Если ошибка повторится, обратитесь к администратору.'
+      : 'Could not publish the post. Please try again. If the error repeats, contact the administrator.';
+  };
   
   const handlePublishAll = async () => {
     if (publishingAll) return;
@@ -367,7 +407,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
       });
 
       if (!res.ok) {
-        throw new Error(await res.text());
+        throw new Error(getPublishErrorMessage(await readPublishError(res)));
       }
 
       let responseBody: { skippedDuplicates?: unknown[]; publishedAccounts?: unknown[] } | null = null;
@@ -523,7 +563,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
       });
 
       if (!res.ok) {
-        throw new Error(await res.text());
+        throw new Error(getPublishErrorMessage(await readPublishError(res)));
       }
 
       newNetworks[index].status = 'success';
