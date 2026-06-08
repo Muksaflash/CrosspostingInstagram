@@ -292,10 +292,25 @@ export async function POST(req: Request) {
           if (!cloudinaryConf.cloudName || !cloudinaryConf.apiKey || !cloudinaryConf.apiSecret) {
             throw new Error(`Cloudinary settings missing for slideshow generation (required for ${net.name})`);
           }
-          const slideUrl = await createCloudinarySlideshowUrl(mediaUrls, cloudinaryConf);
-          fileIdsSlideshow = await uploadMediaUrlsToPostMyPost([slideUrl], token, projectId);
+          try {
+            const slideUrl = await createCloudinarySlideshowUrl(mediaUrls, cloudinaryConf);
+            fileIdsSlideshow = await uploadMediaUrlsToPostMyPost([slideUrl], token, projectId);
+          } catch (slideErr: unknown) {
+            const message = slideErr instanceof Error ? slideErr.message : String(slideErr);
+            console.error(`Slideshow creation failed for ${net.name || candidate.accountId}:`, message);
+            if (!fileIdsOriginal) {
+              fileIdsOriginal = await uploadMediaUrlsToPostMyPost(mediaUrls, token, projectId);
+            }
+            currentFileIds = fileIdsOriginal;
+          }
         }
-        currentFileIds = fileIdsSlideshow;
+        if (fileIdsSlideshow) currentFileIds = fileIdsSlideshow;
+        else if (!currentFileIds.length) {
+          if (!fileIdsOriginal) {
+            fileIdsOriginal = await uploadMediaUrlsToPostMyPost(mediaUrls, token, projectId);
+          }
+          currentFileIds = fileIdsOriginal;
+        }
       } else {
         if (!fileIdsOriginal) {
           fileIdsOriginal = await uploadMediaUrlsToPostMyPost(mediaUrls, token, projectId);

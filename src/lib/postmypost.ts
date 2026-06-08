@@ -1,9 +1,23 @@
 
 const BASE_URL = 'https://api.postmypost.io/v4.1';
+const UPLOAD_RETRY_DELAYS_MS = [1500, 3000, 6000];
+const UPLOAD_BETWEEN_FILES_DELAY_MS = 500;
 
 export interface PostMyPostMedia {
   url: string; // Direct URL to media
   fileName?: string;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function textOrEmpty(res: Response): Promise<string> {
+  try {
+    return await res.text();
+  } catch {
+    return '';
+  }
 }
 
 export async function uploadMediaToPostMyPost(media: PostMyPostMedia, token: string, projectId: number): Promise<string> {
@@ -27,25 +41,42 @@ const size = blob.size;
 
 // 1. Init Upload
   console.log(`[PMP Upload] Init upload for ${fileName} (${size} bytes)`);
-  let initRes;
-  try {
-    initRes = await fetch(`${BASE_URL}/upload/init`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        project_id: projectId,
-        name: fileName,
-        size: size
-      })
-    });
-  } catch (e: any) {
-    throw new Error(`PostMyPost Init Fetch Error: ${e.message}`);
+  let initRes: Response | null = null;
+  let initErrorText = '';
+  for (let attempt = 0; attempt <= UPLOAD_RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      initRes = await fetch(`${BASE_URL}/upload/init`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          project_id: projectId,
+          name: fileName,
+          size: size
+        })
+      });
+    } catch (e: any) {
+      if (attempt === UPLOAD_RETRY_DELAYS_MS.length) {
+        throw new Error(`PostMyPost Init Fetch Error: ${e.message}`);
+      }
+      await sleep(UPLOAD_RETRY_DELAYS_MS[attempt]);
+      continue;
+    }
+
+    if (initRes.ok) break;
+
+    initErrorText = await textOrEmpty(initRes);
+    if (initRes.status !== 429 || attempt === UPLOAD_RETRY_DELAYS_MS.length) {
+      throw new Error(`PostMyPost Init Error: ${initErrorText}`);
+    }
+
+    console.warn(`[PMP Upload] Init rate limited for ${fileName}, retrying in ${UPLOAD_RETRY_DELAYS_MS[attempt]}ms`);
+    await sleep(UPLOAD_RETRY_DELAYS_MS[attempt]);
   }
 
-if (!initRes.ok) throw new Error(`PostMyPost Init Error: ${await initRes.text()}`);
+if (!initRes || !initRes.ok) throw new Error(`PostMyPost Init Error: ${initErrorText}`);
 const initData = await initRes.json();
 const uploadId = initData.id;
 const uploadUrl = initData.action;
@@ -146,15 +177,21 @@ throw new Error('PostMyPost Upload Timeout');
 }
 
 export async function uploadMediaUrlsToPostMyPost(urls: string[], token: string, projectId: number): Promise<string[]> {
-  const uploadPromises = urls
-    .filter(url => !!url)
-    .map((url, index) => {
-      const isVideo = url.toLowerCase().split('?')[0].match(/\.(mp4|mov|avi|webm)$/);
-      const fileName = `media_${Date.now()}_${index}${isVideo ? '.mp4' : '.jpg'}`;
-      return uploadMediaToPostMyPost({ url, fileName }, token, projectId);
-    });
+  const ids: string[] = [];
+  const validUrls = urls.filter(url => !!url);
 
-  return await Promise.all(uploadPromises);
+  for (let index = 0; index < validUrls.length; index++) {
+    const url = validUrls[index];
+    const isVideo = url.toLowerCase().split('?')[0].match(/\.(mp4|mov|avi|webm)$/);
+    const fileName = `media_${Date.now()}_${index}${isVideo ? '.mp4' : '.jpg'}`;
+    ids.push(await uploadMediaToPostMyPost({ url, fileName }, token, projectId));
+
+    if (index < validUrls.length - 1) {
+      await sleep(UPLOAD_BETWEEN_FILES_DELAY_MS);
+    }
+  }
+
+  return ids;
 }
 
 export async function createPublication(params: any, token: string): Promise<any> {
