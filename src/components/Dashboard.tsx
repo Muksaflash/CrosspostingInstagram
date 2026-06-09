@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Instagram, Wand2, Send, RefreshCw, Settings, Search, Key, Save, LogOut, Plus, X, Trash2, Zap } from "lucide-react";
+import { Instagram, Wand2, Send, RefreshCw, Settings, Search, Key, Save, LogOut, Plus, X, Trash2, Zap, ImageOff } from "lucide-react";
 import { saveSocialNetwork, saveUserSetting, getUserSettings, getQuotas } from "@/app/actions";
 import { translations } from "@/i18n/translations";
 import { defaultPrompts, PLATFORM_KEYS, type PlatformKey, detectPlatform } from "@/lib/prompts";
@@ -26,10 +26,10 @@ function QuotaWidget({ quotas, fetchQuotas, loading }: any) {
   if (!quotas || (!quotas.instagram && !quotas.slideshow)) return null;
 
   return (
-    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm mb-6 border border-gray-100 dark:border-zinc-800 dark:border-zinc-800 overflow-hidden">
+    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm mb-6 border border-gray-100 dark:border-zinc-800 overflow-hidden">
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:bg-zinc-800 transition-colors"
+        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
       >
         <div className="flex items-center gap-4">
           <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
@@ -128,6 +128,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
   ]);
   
   const [post, setPost] = useState<InstagramPost | null>(initialPost || null);
+  const [previewImageFailed, setPreviewImageFailed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [publishingAll, setPublishingAll] = useState(false);
   const [fetchLink, setFetchLink] = useState("");
@@ -175,6 +176,10 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
       loadQuotas();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    setPreviewImageFailed(false);
+  }, [post?.imageUrl]);
 
   const loadQuotas = async () => {
     setQuotaLoading(true);
@@ -802,12 +807,12 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                           value={fetchLink}
                           onChange={(e) => setFetchLink(e.target.value)}
                           placeholder="https://instagram.com/p/..."
-                          className="flex-1 rounded-lg border border-gray-300 dark:border-zinc-600 px-3 py-2 text-sm"
+                          className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-900 dark:text-gray-100 dark:placeholder:text-gray-500"
                         />
                         <button
                           onClick={handleFetchByLink}
                           disabled={loading || !fetchLink}
-                          className="rounded-lg bg-gray-100 dark:bg-zinc-800 p-2 hover:bg-gray-200 dark:bg-zinc-700"
+                          className="rounded-lg bg-gray-100 p-2 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700"
                           title="Получить пост"
                         >
                           <Search className="h-4 w-4" />
@@ -840,7 +845,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                         dateFormat="dd.MM.yyyy HH:mm"
                         locale={language}
                         placeholderText={language === "ru" ? "ДД.ММ.ГГГГ --:--" : "MM/DD/YYYY --:--"}
-                        className="w-full rounded-lg border border-gray-300 dark:border-zinc-600 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-900 dark:text-gray-100 dark:placeholder:text-gray-500"
                       />
                     </div>
 
@@ -848,7 +853,26 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                       <div className="space-y-3 pt-4 border-t">
                         {post.imageUrl && (
                           <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-gray-100 dark:bg-zinc-800">
-                            <img src={`/api/proxy-image?url=${encodeURIComponent(post.imageUrl)}`} alt="Post preview" className="h-full w-full object-cover" />
+                            {!previewImageFailed ? (
+                              <img
+                                src={`/api/proxy-image?url=${encodeURIComponent(post.imageUrl)}`}
+                                alt={t('dashboard', 'postPreview')}
+                                onError={() => setPreviewImageFailed(true)}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center text-gray-500 dark:text-gray-400">
+                                <ImageOff className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+                                <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                                  {language === 'ru' ? 'Превью недоступно' : 'Preview unavailable'}
+                                </p>
+                                <p className="max-w-xs text-xs leading-relaxed">
+                                  {language === 'ru'
+                                    ? 'Instagram мог обновить ссылку на медиа. Получите пост заново, если нужно увидеть картинку.'
+                                    : 'Instagram may have refreshed this media link. Fetch the post again if you need to see the image.'}
+                                </p>
+                              </div>
+                            )}
                             <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
                               <span className="rounded bg-black/60 backdrop-blur-sm px-2 py-1 text-xs font-medium text-white shadow-sm">
                                 {t('dashboard', `postTypes.${(post.type || '').toLowerCase().replace(/\s+/g, '_')}`) || post.type}
@@ -865,7 +889,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                         <textarea
                           value={post.caption || ""}
                           onChange={(e) => setPost({ ...post, caption: e.target.value })}
-                          className="w-full text-sm text-gray-800 dark:text-gray-200 min-h-[150px] max-h-60 overflow-y-auto whitespace-pre-wrap p-3 rounded-md bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 focus:bg-white dark:bg-zinc-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors resize-y focus:outline-none"
+                          className="w-full text-sm text-gray-800 dark:text-gray-200 min-h-[150px] max-h-60 overflow-y-auto whitespace-pre-wrap p-3 rounded-md bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 focus:bg-white dark:focus:bg-zinc-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors resize-y focus:outline-none"
                           placeholder={t('dashboard', 'postTextPlaceholder')}
                         />
 
@@ -889,7 +913,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
               {/* Right Column: Networks */}
               <div className="space-y-6 lg:col-span-2">
                 {/* Auto-Posting Toggle Card */}
-                <div className="rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-5 shadow-sm flex items-center justify-between">
+                <div className="rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-5 shadow-sm flex items-center justify-between dark:from-zinc-900 dark:to-zinc-800 dark:border-zinc-700">
                   <div>
                     <span className="font-semibold text-gray-800 dark:text-gray-200 text-lg">{t('dashboard', 'autoPost.title')}</span>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -907,27 +931,27 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                       }}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-zinc-900 after:border-gray-300 dark:border-zinc-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-zinc-700 after:border-gray-300 dark:border-zinc-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                   </label>
                 </div>
 
                 {/* Global Pinterest Link */}
-                <div className="rounded-xl bg-gradient-to-r from-red-50 to-pink-50 border border-red-100 p-5 shadow-sm">
+                <div className="rounded-xl bg-gradient-to-r from-red-50 to-pink-50 border border-red-100 p-5 shadow-sm dark:from-zinc-900 dark:to-zinc-800 dark:border-zinc-700">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-lg">📌</span>
                     <span className="font-semibold text-gray-800 dark:text-gray-200">{t('dashboard', 'pinterestLink.title')}</span>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <input
                       type="url"
                       value={pinterestLink}
                       onChange={(e) => setPinterestLink(e.target.value)}
                       placeholder="https://mysite.com/course"
-                      className="flex-1 rounded-lg border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-sm focus:border-red-400 focus:outline-none"
+                      className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-red-400 focus:outline-none dark:border-zinc-600 dark:bg-zinc-900 dark:text-gray-100 dark:placeholder:text-gray-500"
                     />
                     <button
                       onClick={() => handleSaveKey('PINTEREST_LINK', pinterestLink)}
-                      className="rounded-lg bg-red-600 px-4 py-2 text-white text-sm font-medium hover:bg-red-700 transition-colors flex items-center gap-1.5"
+                      className="rounded-lg bg-red-600 px-4 py-2 text-white text-sm font-medium hover:bg-red-700 transition-colors flex items-center justify-center gap-1.5"
                     >
                       <Save className="w-3.5 h-3.5" />
                       {t('dashboard', 'pinterestLink.save')}
@@ -937,12 +961,12 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                 </div>
 
                 <div className="rounded-xl bg-white dark:bg-zinc-900 p-6 shadow-sm">
-                  <div className="mb-6 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                  <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                       <h2 className="text-xl font-semibold">{t('dashboard', 'socialNetworks.title')}</h2>
                       <button
                         onClick={handleOpenAddNetworkModal}
-                        className="flex items-center gap-1 rounded-md bg-gray-100 dark:bg-zinc-800 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:bg-zinc-700 transition-colors"
+                        className="flex w-full items-center justify-center gap-1 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700 sm:w-auto"
                       >
                         <Plus className="h-4 w-4" /> {t('dashboard', 'socialNetworks.addNetwork')}
                       </button>
@@ -950,7 +974,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                     <button
                       onClick={handlePublishAll}
                       disabled={!post || publishingAll}
-                      className="rounded-lg bg-green-600 px-6 py-2 text-white hover:bg-green-700 flex items-center gap-2 disabled:opacity-50"
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium leading-tight text-white hover:bg-green-700 disabled:opacity-50 sm:w-auto sm:px-6 sm:text-base"
                     >
                       {publishingAll ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                       {t('dashboard', 'socialNetworks.publishAll')}
@@ -986,7 +1010,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                             <div className="relative">
                               <button
                                 onClick={() => setExpandedSettingsIdx(expandedSettingsIdx === idx ? null : idx)}
-                                className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:bg-zinc-800 transition-colors"
+                                className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                                 title={t('dashboard', 'networkCard.settings')}
                               >
                                 <Settings className="w-4 h-4" />
@@ -998,14 +1022,14 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                       setAdvancedSettingsIdx(idx);
                                       setExpandedSettingsIdx(null);
                                     }}
-                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-zinc-800 rounded flex items-center gap-2 transition-colors border-b border-gray-100 dark:border-zinc-800 mb-1"
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 rounded flex items-center gap-2 transition-colors border-b border-gray-100 dark:border-zinc-800 mb-1"
                                   >
                                     <Settings className="w-4 h-4" />
                                     {t('dashboard', 'networkCard.advancedSettings')}
                                   </button>
                                   <button
                                     onClick={() => handleSuggestPrompt(idx)}
-                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-zinc-800 rounded flex items-center gap-2 transition-colors border-b border-gray-100 dark:border-zinc-800 mb-1"
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 rounded flex items-center gap-2 transition-colors border-b border-gray-100 dark:border-zinc-800 mb-1"
                                   >
                                     <Zap className="w-4 h-4 text-amber-500" />
                                     {t('dashboard', 'networkCard.suggestPrompt')}
@@ -1034,7 +1058,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                               <button
                                 onClick={() => handleRewriteSingle(idx)}
                                 disabled={net.status === 'rewriting' || net.status === 'publishing' || (!post && !net.adaptedText)}
-                                className="flex items-center justify-center gap-2 bg-blue-100 text-blue-700 hover:bg-blue-200 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
+                                className="flex items-center justify-center gap-2 bg-blue-100 text-blue-700 hover:bg-blue-200 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 dark:bg-blue-950/50 dark:text-blue-200 dark:hover:bg-blue-900/60"
                               >
                                 {net.status === 'rewriting' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
                                 {t('dashboard', 'networkCard.rewrite')}
@@ -1042,17 +1066,17 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                               <button
                                 onClick={() => handlePublishSingle(idx)}
                                 disabled={net.status === 'rewriting' || net.status === 'publishing' || (!post && !net.adaptedText)}
-                                className="flex items-center justify-center gap-2 bg-green-100 text-green-700 hover:bg-green-200 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
+                                className="flex items-center justify-center gap-2 bg-green-100 text-green-700 hover:bg-green-200 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 dark:bg-emerald-950/50 dark:text-emerald-200 dark:hover:bg-emerald-900/60"
                               >
                                 {net.status === 'publishing' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                                 {t('dashboard', 'networkCard.publish')}
                               </button>
                             </div>
                             {net.status === 'error' && (
-                              <p className="text-red-500 text-xs mt-1 font-medium bg-red-50 p-2 rounded border border-red-100">{net.errorMsg}</p>
+                              <p className="text-red-600 dark:text-red-200 text-xs mt-1 font-medium bg-red-50 dark:bg-red-950/50 p-2 rounded border border-red-100 dark:border-red-900/60">{net.errorMsg}</p>
                             )}
                             {net.status === 'success' && (
-                              <p className="text-green-600 text-xs mt-1 font-medium bg-green-50 p-2 rounded border border-green-100">{t('dashboard', 'networkCard.success')}</p>
+                              <p className="text-green-600 dark:text-emerald-200 text-xs mt-1 font-medium bg-green-50 dark:bg-emerald-950/50 p-2 rounded border border-green-100 dark:border-emerald-900/60">{t('dashboard', 'networkCard.success')}</p>
                             )}
 
                             <div className="space-y-1">
@@ -1068,7 +1092,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                   saveSocialNetwork(net._docId || net.accountId || net.name, networks[idx]);
                                 }}
                                 placeholder={t('dashboard', 'networkCard.promptPlaceholder')}
-                                className="w-full rounded-md border border-gray-200 dark:border-zinc-700 p-2 text-xs focus:border-blue-500 focus:outline-none min-h-[60px]"
+                                className="w-full rounded-md border border-gray-200 bg-white p-2 text-xs text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none min-h-[60px] dark:border-zinc-700 dark:bg-zinc-950 dark:text-gray-100 dark:placeholder:text-gray-500"
                               />
                             </div>
 
@@ -1087,7 +1111,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                     saveSocialNetwork(net._docId || net.accountId || net.name, networks[idx]);
                                   }}
                                   placeholder={t('dashboard', 'networkCard.titlePlaceholder')}
-                                  className="w-full mt-1 rounded-md border border-gray-200 dark:border-zinc-700 p-2 text-sm focus:border-blue-500 focus:outline-none"
+                                  className="w-full mt-1 rounded-md border border-gray-200 bg-white p-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-gray-100 dark:placeholder:text-gray-500"
                                 />
                               </div>
                               <div>
@@ -1103,7 +1127,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                     saveSocialNetwork(net._docId || net.accountId || net.name, networks[idx]);
                                   }}
                                   placeholder={t('dashboard', 'networkCard.adaptedTextPlaceholder')}
-                                  className="w-full mt-1 rounded-md border border-gray-200 dark:border-zinc-700 p-2 text-sm focus:border-blue-500 focus:outline-none min-h-[100px]"
+                                  className="w-full mt-1 rounded-md border border-gray-200 bg-white p-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none min-h-[100px] dark:border-zinc-700 dark:bg-zinc-950 dark:text-gray-100 dark:placeholder:text-gray-500"
                                 />
                               </div>
                             </div>

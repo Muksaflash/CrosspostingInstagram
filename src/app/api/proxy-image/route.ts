@@ -38,6 +38,14 @@ export async function GET(request: NextRequest) {
     });
 
     if (!response.ok) {
+      const isExpiredMedia = response.status === 403 || response.status === 404 || response.status === 410;
+      const message = `Image preview unavailable: ${response.status} ${response.statusText}`;
+
+      if (isExpiredMedia) {
+        console.log(message);
+        return new NextResponse("Image preview unavailable", { status: 404 });
+      }
+
       throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
     }
 
