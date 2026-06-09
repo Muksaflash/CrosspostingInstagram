@@ -251,20 +251,13 @@ export async function GET(req: Request) {
                   fileIdsSlideshow = await uploadMediaUrlsToPostMyPost([slideUrl], postMyPostToken, ppmProjectId);
                 } catch (slideErr: any) {
                   console.error(`Slideshow creation failed for ${net.name} (${email}):`, slideErr.message);
-                  // Fall back to original media for this network
-                  if (!fileIdsOriginal) {
-                    fileIdsOriginal = await uploadMediaUrlsToPostMyPost(mediaUrls, postMyPostToken, ppmProjectId);
-                  }
-                currentFileIds = fileIdsOriginal;
-              }
+                  continue;
+                }
             }
             if (fileIdsSlideshow) currentFileIds = fileIdsSlideshow;
             else if (!currentFileIds.length) {
-              // Slideshow failed and fallback wasn't set
-              if (!fileIdsOriginal) {
-                fileIdsOriginal = await uploadMediaUrlsToPostMyPost(mediaUrls, postMyPostToken, ppmProjectId);
-              }
-              currentFileIds = fileIdsOriginal;
+              console.error(`Slideshow file IDs are missing for ${net.name} (${email}); skipping network.`);
+              continue;
             }
           } else {
              if (!fileIdsOriginal) {
