@@ -3,6 +3,57 @@ import https from 'https';
 const RAPIDAPI_HOST = 'instagram120.p.rapidapi.com';
 const API_ENDPOINT = 'https://instagram120.p.rapidapi.com/api/instagram/links';
 const API_MEDIA_BY_SHORTCODE_ENDPOINT = '/api/instagram/mediaByShortcode';
+const RAPIDAPI_RETRY_DELAYS_MS = [1500, 4000];
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isRetryableInstagramError(error: unknown): boolean {
+  const message = getErrorMessage(error).toLowerCase();
+
+  if (message.includes('rapidapi error: 429')) return false;
+  if (message.includes('rapidapi error: 401') || message.includes('rapidapi error: 403')) return false;
+
+  return (
+    message.includes('link not found') ||
+    message.includes('download link not found') ||
+    message.includes('empty response') ||
+    message.includes('empty array response') ||
+    message.includes('rapidapi error: 500') ||
+    message.includes('rapidapi error: 502') ||
+    message.includes('rapidapi error: 503') ||
+    message.includes('rapidapi error: 504') ||
+    message.includes('fetch failed') ||
+    message.includes('econnreset') ||
+    message.includes('timeout')
+  );
+}
+
+async function withInstagramRetry<T>(label: string, operation: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= RAPIDAPI_RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      const delayMs = RAPIDAPI_RETRY_DELAYS_MS[attempt];
+      if (delayMs === undefined || !isRetryableInstagramError(error)) {
+        throw error;
+      }
+
+      console.log(`[Instagram] ${label} failed, retrying in ${delayMs}ms: ${getErrorMessage(error)}`);
+      await sleep(delayMs);
+    }
+  }
+
+  throw lastError;
+}
 
 /**
  * Randomizes the case of each letter in the Instagram username
@@ -64,103 +115,107 @@ export interface InstagramQuota {
 }
 
 export async function getLatestInstagramPost(usernameUrl: string, rapidApiKey: string): Promise<{ post: InstagramPost, quota: InstagramQuota }> {
-  const res = await fetch(API_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-rapidapi-host': RAPIDAPI_HOST,
-      'x-rapidapi-key': rapidApiKey,
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    },
-    body: JSON.stringify({ url: jitterInstagramUsernameCase(usernameUrl) }),
+  return withInstagramRetry('latest post fetch', async () => {
+    const res = await fetch(API_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-rapidapi-host': RAPIDAPI_HOST,
+        'x-rapidapi-key': rapidApiKey,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      },
+      body: JSON.stringify({ url: jitterInstagramUsernameCase(usernameUrl) }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`RapidAPI Error: ${res.status} ${await res.text()}`);
+    }
+
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error('Empty response from Instagram API');
+    }
+
+    // Find latest by takenAt
+    const latestItem = data.reduce((best: any, item: any) => {
+      if (!item?.meta?.takenAt) return best;
+      if (!best) return item;
+      return item.meta.takenAt > best.meta.takenAt ? item : best;
+    }, null) || data[0];
+
+    const remaining = res.headers.get('x-ratelimit-requests-remaining') || '0';
+    const limit = res.headers.get('x-ratelimit-requests-limit') || '0';
+    const resetSeconds = res.headers.get('x-ratelimit-requests-reset') || '0';
+    const quota = {
+      limit: parseInt(limit, 10),
+      remaining: parseInt(remaining, 10),
+      resetSeconds: parseInt(resetSeconds, 10)
+    };
+
+    return { post: processInstagramItem(latestItem, data), quota };
   });
-
-  if (!res.ok) {
-    throw new Error(`RapidAPI Error: ${res.status} ${await res.text()}`);
-  }
-
-  const data = await res.json();
-  if (!Array.isArray(data) || data.length === 0) {
-    throw new Error('Empty response from Instagram API');
-  }
-
-  // Find latest by takenAt
-  const latestItem = data.reduce((best: any, item: any) => {
-    if (!item?.meta?.takenAt) return best;
-    if (!best) return item;
-    return item.meta.takenAt > best.meta.takenAt ? item : best;
-  }, null) || data[0];
-
-  const remaining = res.headers.get('x-ratelimit-requests-remaining') || '0';
-  const limit = res.headers.get('x-ratelimit-requests-limit') || '0';
-  const resetSeconds = res.headers.get('x-ratelimit-requests-reset') || '0';
-  const quota = {
-    limit: parseInt(limit, 10),
-    remaining: parseInt(remaining, 10),
-    resetSeconds: parseInt(resetSeconds, 10)
-  };
-
-  return { post: processInstagramItem(latestItem, data), quota };
 }
 
 export async function getRecentInstagramPosts(usernameUrl: string, rapidApiKey: string): Promise<{ posts: InstagramPost[], quota: InstagramQuota }> {
-  const res = await fetch(API_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-rapidapi-host': RAPIDAPI_HOST,
-      'x-rapidapi-key': rapidApiKey,
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    },
-    body: JSON.stringify({ url: jitterInstagramUsernameCase(usernameUrl) }),
-  });
+  return withInstagramRetry('recent posts fetch', async () => {
+    const res = await fetch(API_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-rapidapi-host': RAPIDAPI_HOST,
+        'x-rapidapi-key': rapidApiKey,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      },
+      body: JSON.stringify({ url: jitterInstagramUsernameCase(usernameUrl) }),
+    });
 
-  if (!res.ok) {
-    throw new Error(`RapidAPI Error: ${res.status} ${await res.text()}`);
-  }
-
-  const data = await res.json();
-  if (!Array.isArray(data) || data.length === 0) {
-    throw new Error('Empty response from Instagram API');
-  }
-
-  // The endpoint returns a flat array of media items. Group them by shortcode/id to form distinct posts.
-  const postsMap = new Map<string, any[]>();
-
-  for (const item of data) {
-    const sc = item?.meta?.shortcode || item?.meta?.id;
-    if (!sc) continue;
-    if (!postsMap.has(sc)) postsMap.set(sc, []);
-    postsMap.get(sc)!.push(item);
-  }
-
-  const recentPosts: InstagramPost[] = [];
-
-  for (const [sc, items] of postsMap.entries()) {
-    // We treat the first item in the group as the main metadata source
-    const mainItem = items[0];
-    if (mainItem) {
-      recentPosts.push(processInstagramItem(mainItem, data));
+    if (!res.ok) {
+      throw new Error(`RapidAPI Error: ${res.status} ${await res.text()}`);
     }
-  }
 
-  // Sort them by takenAt descending (newest first)
-  recentPosts.sort((a, b) => b.takenAt - a.takenAt);
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error('Empty response from Instagram API');
+    }
 
-  const remaining = res.headers.get('x-ratelimit-requests-remaining') || '0';
-  const limit = res.headers.get('x-ratelimit-requests-limit') || '0';
-  const resetSeconds = res.headers.get('x-ratelimit-requests-reset') || '0';
-  const quota = {
-    limit: parseInt(limit, 10),
-    remaining: parseInt(remaining, 10),
-    resetSeconds: parseInt(resetSeconds, 10)
-  };
+    // The endpoint returns a flat array of media items. Group them by shortcode/id to form distinct posts.
+    const postsMap = new Map<string, any[]>();
 
-  return { posts: recentPosts, quota };
+    for (const item of data) {
+      const sc = item?.meta?.shortcode || item?.meta?.id;
+      if (!sc) continue;
+      if (!postsMap.has(sc)) postsMap.set(sc, []);
+      postsMap.get(sc)!.push(item);
+    }
+
+    const recentPosts: InstagramPost[] = [];
+
+    for (const [sc, items] of postsMap.entries()) {
+      // We treat the first item in the group as the main metadata source
+      const mainItem = items[0];
+      if (mainItem) {
+        recentPosts.push(processInstagramItem(mainItem, data));
+      }
+    }
+
+    // Sort them by takenAt descending (newest first)
+    recentPosts.sort((a, b) => b.takenAt - a.takenAt);
+
+    const remaining = res.headers.get('x-ratelimit-requests-remaining') || '0';
+    const limit = res.headers.get('x-ratelimit-requests-limit') || '0';
+    const resetSeconds = res.headers.get('x-ratelimit-requests-reset') || '0';
+    const quota = {
+      limit: parseInt(limit, 10),
+      remaining: parseInt(remaining, 10),
+      resetSeconds: parseInt(resetSeconds, 10)
+    };
+
+    return { posts: recentPosts, quota };
+  });
 }
 
 export async function getInstagramPostByShortcode(shortcode: string, rapidApiKey: string): Promise<{ post: InstagramPost, quota: InstagramQuota }> {
-  return new Promise((resolve, reject) => {
+  return withInstagramRetry('post by shortcode fetch', () => new Promise((resolve, reject) => {
     const postData = JSON.stringify({ shortcode });
     const options = {
       method: 'POST',
@@ -232,7 +287,7 @@ export async function getInstagramPostByShortcode(shortcode: string, rapidApiKey
 
     req.write(postData);
     req.end();
-  });
+  }));
 }
 
 function processInstagramItem(item: any, allItems: any[]): InstagramPost {
