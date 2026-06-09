@@ -22,6 +22,31 @@ function isVideoUrl(url: string): boolean {
   return u.endsWith('.mp4') || u.endsWith('.mov') || u.endsWith('.avi') || u.endsWith('.webm');
 }
 
+async function fetchCloudinaryDeliveryBlob(url: string, label: string): Promise<Blob> {
+  const deadline = Date.now() + 120 * 1000;
+  let lastStatus = 0;
+  let lastBody = '';
+
+  while (Date.now() < deadline) {
+    const res = await fetch(url);
+
+    if (res.ok) {
+      return await res.blob();
+    }
+
+    lastStatus = res.status;
+    lastBody = await res.text().catch(() => '');
+
+    if (res.status === 400 || res.status === 401 || res.status === 403) {
+      throw new Error(`${label} failed ${res.status}: ${lastBody}`);
+    }
+
+    await new Promise(r => setTimeout(r, 5000));
+  }
+
+  throw new Error(`${label} timed out (last status ${lastStatus}): ${lastBody}`);
+}
+
 export async function uploadToCloudinary(
   blob: Blob,
   resourceType: 'video' | 'image',
@@ -142,7 +167,6 @@ export async function createCloudinarySlideshowUrl(urls: string[], conf: Cloudin
   const baseVideo = rawAssets.find(a => a.type === 'video') || rawAssets[0];
   const TARGET_W = baseVideo.width;
   const TARGET_H = baseVideo.height;
-  const donorVideoId = baseVideo.type === 'video' ? baseVideo.publicId : 'sample';
 
   // 2) Convert IMAGE to VIDEO segments concurrently
   const videoAssetsPromises = rawAssets.map(async (asset) => {
@@ -150,18 +174,13 @@ export async function createCloudinarySlideshowUrl(urls: string[], conf: Cloudin
       return asset;
     } else {
       const transformations = [
-        `w_${TARGET_W},h_${TARGET_H},c_pad,b_black`, // slide back
+        `w_${TARGET_W},h_${TARGET_H},c_pad,b_black`,
         'du_3.5',
-        'ac_none',
-        // overlay Image
-        `l_${asset.publicId.replace(/\//g, ':')},w_${TARGET_W},h_${TARGET_H},c_pad,b_black,fl_layer_apply,so_0`
+        'ac_none'
       ];
 
-      const convertUrl = `https://res.cloudinary.com/${conf.cloudName}/video/upload/${transformations.join('/')}/${donorVideoId}.mp4`;
-      
-      const vRes = await fetch(convertUrl);
-      if (!vRes.ok) throw new Error(`Convert fail ${vRes.status}`);
-      const vBlob = await vRes.blob();
+      const convertUrl = `https://res.cloudinary.com/${conf.cloudName}/image/upload/${transformations.join('/')}/${asset.publicId}.mp4`;
+      const vBlob = await fetchCloudinaryDeliveryBlob(convertUrl, `Image segment convert (${asset.index})`);
       
       const vUpRes = await uploadToCloudinary(vBlob, 'video', conf);
       return {
