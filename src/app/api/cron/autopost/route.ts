@@ -28,6 +28,17 @@ function comparePostsByTakenAt(a: InstagramPost, b: InstagramPost): number {
   return a.takenAt - b.takenAt;
 }
 
+function isExpectedInstagramFetchMiss(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("link not found") ||
+    lower.includes("download link not found") ||
+    lower.includes("empty response") ||
+    lower.includes("empty array response")
+  );
+}
+
 /**
  * Maps a Firestore document to a SocialNetwork object.
  */
@@ -118,7 +129,12 @@ export async function GET(req: Request) {
       try {
         fetchedData = await getRecentInstagramPosts(instagramUrl, rapidApiKey);
       } catch (err: any) {
-        console.error(`Error fetching Instagram for ${email}:`, err.message);
+        const message = err instanceof Error ? err.message : String(err);
+        if (isExpectedInstagramFetchMiss(err)) {
+          console.log(`Auto-post Instagram fetch skipped for ${email}: ${message}`);
+        } else {
+          console.error(`Error fetching Instagram for ${email}:`, message);
+        }
         continue;
       }
 
