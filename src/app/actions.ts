@@ -5,6 +5,39 @@ import { auth } from "@/auth";
 import { firestore } from "@/lib/firebase-admin";
 import { revalidatePath } from "next/cache";
 import { type SocialNetwork } from "@/lib/types";
+import { type InstagramPost } from "@/lib/instagram";
+
+type FetchPostResult =
+  | { ok: true; post: InstagramPost }
+  | { ok: false; code: string; message: string };
+
+type FetchPostFailure = Extract<FetchPostResult, { ok: false }>;
+
+function toFetchPostError(error: unknown): FetchPostFailure {
+  const message = error instanceof Error ? error.message : String(error);
+  const lower = message.toLowerCase();
+
+  if (lower.includes("link not found") || lower.includes("download link not found")) {
+    return { ok: false, code: "INSTAGRAM_LINK_NOT_FOUND", message };
+  }
+  if (lower.includes("empty response") || lower.includes("empty array response")) {
+    return { ok: false, code: "INSTAGRAM_EMPTY_RESPONSE", message };
+  }
+  if (lower.includes("rapidapi error")) {
+    return { ok: false, code: "INSTAGRAM_API_ERROR", message };
+  }
+  if (lower.includes("invalid instagram link")) {
+    return { ok: false, code: "INVALID_INSTAGRAM_LINK", message };
+  }
+  if (lower.includes("rapidapi_key not configured")) {
+    return { ok: false, code: "RAPIDAPI_NOT_CONFIGURED", message };
+  }
+  if (lower.includes("unauthorized")) {
+    return { ok: false, code: "UNAUTHORIZED", message };
+  }
+
+  return { ok: false, code: "FETCH_POST_FAILED", message };
+}
 
 async function getCurrentUserDataKey(): Promise<string | null> {
   const session = await auth();
@@ -116,59 +149,70 @@ export async function saveSocialNetwork(
   }
 }
 
-export async function fetchLatestPost(link?: string) {
-  const userDataKey = await getCurrentUserDataKey();
-  if (!userDataKey) throw new Error("Unauthorized");
+export async function fetchLatestPost(link?: string): Promise<FetchPostResult> {
+  try {
+    const userDataKey = await getCurrentUserDataKey();
+    if (!userDataKey) throw new Error("Unauthorized");
 
-  const settings = await getUserSettings();
-  const rapidApiKey = settings?.RAPIDAPI_KEY;
-  if (!rapidApiKey) throw new Error("RAPIDAPI_KEY not configured in settings");
+    const settings = await getUserSettings();
+    const rapidApiKey = settings?.RAPIDAPI_KEY;
+    if (!rapidApiKey) throw new Error("RAPIDAPI_KEY not configured in settings");
 
-  let postResult;
-  let quota;
-  if (link) {
-    const { getInstagramPostByShortcode } = await import("@/lib/instagram");
-     const match = link.match(/instagram\.com\/(?:reel|p|tv)\/([A-Za-z0-9_\-]+)/i);
-     const shortcode = match?.[1];
-    if (!shortcode) throw new Error(`Invalid Instagram link: Could not find shortcode in ${link}`);
-    const fetchRes = await getInstagramPostByShortcode(shortcode, rapidApiKey);
-    postResult = fetchRes.post;
-    quota = fetchRes.quota;
-  } else {
-     const { getLatestInstagramPost } = await import("@/lib/instagram");
-    const usernameUrl = settings?.INSTAGRAM_URL || "https://instagram.com/username";
-    const fetchRes = await getLatestInstagramPost(usernameUrl, rapidApiKey);
-    postResult = fetchRes.post;
-    quota = fetchRes.quota;
-  }
-
-  // Persist the fetched post so it survives hot reloads
-  if (userDataKey) {
-    try {
-      if (quota) {
-        const lastUpdated = Date.now();
-        const resetEpochMs = quota.resetSeconds > 0 ? (lastUpdated + quota.resetSeconds * 1000) : 0;
-        await firestore
-          .collection("users")
-          .doc(userDataKey)
-          .collection("cache")
-          .doc("instagramQuota")
-          .set({ limit: quota.limit, remaining: quota.remaining, resetEpochMs, lastUpdated, resetSeconds: quota.resetSeconds });
-      }
-      if (postResult) {
-        await firestore
-          .collection("users")
-          .doc(userDataKey)
-          .collection("cache")
-          .doc("lastPost")
-          .set(postResult);
-      }
-    } catch (e) {
-      console.error("Failed to cache post or quota:", e);
+    let postResult: InstagramPost | null = null;
+    let quota;
+    if (link) {
+      const { getInstagramPostByShortcode } = await import("@/lib/instagram");
+       const match = link.match(/instagram\.com\/(?:reel|p|tv)\/([A-Za-z0-9_\-]+)/i);
+       const shortcode = match?.[1];
+      if (!shortcode) throw new Error(`Invalid Instagram link: Could not find shortcode in ${link}`);
+      const fetchRes = await getInstagramPostByShortcode(shortcode, rapidApiKey);
+      postResult = fetchRes.post;
+      quota = fetchRes.quota;
+    } else {
+       const { getLatestInstagramPost } = await import("@/lib/instagram");
+      const usernameUrl = settings?.INSTAGRAM_URL || "https://instagram.com/username";
+      const fetchRes = await getLatestInstagramPost(usernameUrl, rapidApiKey);
+      postResult = fetchRes.post;
+      quota = fetchRes.quota;
     }
-  }
 
-  return postResult;
+    // Persist the fetched post so it survives hot reloads
+    if (userDataKey) {
+      try {
+        if (quota) {
+          const lastUpdated = Date.now();
+          const resetEpochMs = quota.resetSeconds > 0 ? (lastUpdated + quota.resetSeconds * 1000) : 0;
+          await firestore
+            .collection("users")
+            .doc(userDataKey)
+            .collection("cache")
+            .doc("instagramQuota")
+            .set({ limit: quota.limit, remaining: quota.remaining, resetEpochMs, lastUpdated, resetSeconds: quota.resetSeconds });
+        }
+        if (postResult) {
+          await firestore
+            .collection("users")
+            .doc(userDataKey)
+            .collection("cache")
+            .doc("lastPost")
+            .set(postResult);
+        }
+      } catch (e) {
+        console.error("Failed to cache post or quota:", e);
+      }
+    }
+
+    if (!postResult) throw new Error("Empty response from Instagram API");
+    return { ok: true, post: postResult };
+  } catch (error) {
+    const result = toFetchPostError(error);
+    if (result.code === "INSTAGRAM_LINK_NOT_FOUND" || result.code === "INSTAGRAM_EMPTY_RESPONSE") {
+      console.log(`Fetch latest Instagram post skipped: ${result.code} - ${result.message}`);
+    } else {
+      console.error("Fetch latest Instagram post failed:", error);
+    }
+    return result;
+  }
 }
 
 export async function getLastPost() {

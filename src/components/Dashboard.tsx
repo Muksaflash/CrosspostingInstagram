@@ -262,12 +262,18 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
     setLoading(true);
     try {
       const { fetchLatestPost } = await import("@/app/actions");
-      const data = await fetchLatestPost();
-      if (data) setPost(data);
+      const result = await fetchLatestPost();
+      if (!result.ok) {
+        alert(getFetchPostErrorMessage(result));
+        return;
+      }
+      setPost(result.post);
     } catch (e: any) {
-      alert("Error fetching post: " + e.message);
+      console.error(e);
+      alert(getFetchPostErrorMessage({ code: 'FETCH_POST_FAILED' }));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleFetchByLink = async () => {
@@ -275,12 +281,18 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
     setLoading(true);
     try {
       const { fetchLatestPost } = await import("@/app/actions");
-      const data = await fetchLatestPost(fetchLink);
-      if (data) setPost(data);
+      const result = await fetchLatestPost(fetchLink);
+      if (!result.ok) {
+        alert(getFetchPostErrorMessage(result));
+        return;
+      }
+      setPost(result.post);
     } catch (e: any) {
-      alert("Error fetching post by link: " + e.message);
+      console.error(e);
+      alert(getFetchPostErrorMessage({ code: 'FETCH_POST_FAILED' }));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
   
   const handleAdaptAll = async () => {
@@ -363,6 +375,36 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
     return language === 'ru'
       ? 'Не удалось опубликовать пост. Попробуйте ещё раз. Если ошибка повторится, обратитесь к администратору.'
       : 'Could not publish the post. Please try again. If the error repeats, contact the administrator.';
+  };
+
+  const getFetchPostErrorMessage = (error: { code?: string; message?: string }) => {
+    if (error.code === 'INSTAGRAM_LINK_NOT_FOUND') {
+      return language === 'ru'
+        ? 'Instagram сейчас не отдал ссылку на медиа. Обычно это временный сбой подключенного сервиса RapidAPI. Попробуйте ещё раз через минуту или получите пост по прямой ссылке.'
+        : 'Instagram did not return the media link right now. This is usually a temporary issue with the connected RapidAPI service. Try again in a minute or fetch the post by direct link.';
+    }
+
+    if (error.code === 'INSTAGRAM_EMPTY_RESPONSE') {
+      return language === 'ru'
+        ? 'Instagram не вернул посты для этого аккаунта. Проверьте ссылку на аккаунт или попробуйте повторить запрос позже.'
+        : 'Instagram did not return posts for this account. Check the account link or try again later.';
+    }
+
+    if (error.code === 'INVALID_INSTAGRAM_LINK') {
+      return language === 'ru'
+        ? 'Не удалось распознать ссылку Instagram. Вставьте ссылку на пост, reels или tv.'
+        : 'Could not recognize the Instagram link. Paste a link to a post, reel, or tv item.';
+    }
+
+    if (error.code === 'RAPIDAPI_NOT_CONFIGURED') {
+      return language === 'ru'
+        ? 'RapidAPI ключ не настроен. Проверьте настройки интеграций.'
+        : 'RapidAPI key is not configured. Check the integration settings.';
+    }
+
+    return language === 'ru'
+      ? 'Не удалось получить пост из Instagram. Попробуйте ещё раз. Если ошибка повторится, обратитесь к администратору.'
+      : 'Could not fetch the Instagram post. Please try again. If the error repeats, contact the administrator.';
   };
   
   const handlePublishAll = async () => {
