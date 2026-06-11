@@ -8,6 +8,13 @@ export interface PostMyPostMedia {
   fileName?: string;
 }
 
+export interface PostMyPostAccount {
+  id: string | number;
+  name?: string;
+  chanel_id?: string | number;
+  connection_status?: string | number;
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -192,6 +199,26 @@ export async function uploadMediaUrlsToPostMyPost(urls: string[], token: string,
   }
 
   return ids;
+}
+
+export async function getPostMyPostAccounts(token: string, projectId: number): Promise<PostMyPostAccount[]> {
+  const res = await fetch(`${BASE_URL}/accounts?project_id=${encodeURIComponent(projectId)}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json',
+    }
+  });
+
+  if (!res.ok) {
+    throw new Error(`PostMyPost Accounts Error: ${res.status} ${await res.text()}`);
+  }
+
+  const data = await res.json();
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.items)) return data.items;
+  return [];
 }
 
 export async function createPublication(params: any, token: string): Promise<any> {

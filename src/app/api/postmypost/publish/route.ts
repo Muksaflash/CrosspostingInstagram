@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getUserSettings } from "@/app/actions";
-import { uploadMediaUrlsToPostMyPost, createPublication } from "@/lib/postmypost";
+import { uploadMediaUrlsToPostMyPost, createPublication, getPostMyPostAccounts } from "@/lib/postmypost";
 import { createCloudinarySlideshowUrl } from "@/lib/cloudinary";
 import { firestore } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
@@ -194,11 +194,29 @@ export async function POST(req: Request) {
     const duplicateAccountIds = new Set<string>();
     const seenAccountIds = new Set<string>();
     const postIdentity = normalizePostIdentity(postKey, postUrl, mediaUrls);
+    const skippedUnavailableAccounts: Array<{ accountId: string; networkName: string; status: string }> = [];
+    let availableAccountIds: Set<string> | null = null;
+
+    try {
+      const pmpAccounts = await getPostMyPostAccounts(token, projectId);
+      availableAccountIds = new Set(pmpAccounts.map((account) => String(account.id)));
+    } catch (accountErr) {
+      console.error("Failed to validate PMP accounts before publish:", accountErr);
+    }
 
     for (const net of networks) {
       const rawAccountId = net.accountId;
       const accountId = rawAccountId === undefined || rawAccountId === null ? "" : String(rawAccountId).trim();
       if (!accountId) continue;
+      if (availableAccountIds && !availableAccountIds.has(accountId)) {
+        skippedUnavailableAccounts.push({
+          accountId,
+          networkName: net.name || accountId,
+          status: "unavailable_in_postmypost",
+        });
+        continue;
+      }
+
       const accountIdValue = rawAccountId === undefined || rawAccountId === null ? accountId : rawAccountId;
       if (seenAccountIds.has(accountId)) {
         duplicateAccountIds.add(accountId);
@@ -252,6 +270,7 @@ export async function POST(req: Request) {
         status: "duplicate_in_request",
       });
     }
+    skippedDuplicates.push(...skippedUnavailableAccounts);
 
     if (claimed.length === 0) {
       return NextResponse.json({

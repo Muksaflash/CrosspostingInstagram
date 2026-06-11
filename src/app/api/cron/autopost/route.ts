@@ -4,7 +4,7 @@ import { safeCompare } from "@/lib/security";
 import { getRecentInstagramPosts, type InstagramPost } from "@/lib/instagram";
 import { type SocialNetwork } from "@/lib/types";
 import { adaptText } from "@/lib/openai";
-import { uploadMediaUrlsToPostMyPost, createPublication } from "@/lib/postmypost";
+import { uploadMediaUrlsToPostMyPost, createPublication, getPostMyPostAccounts } from "@/lib/postmypost";
 import { createCloudinarySlideshowUrl } from "@/lib/cloudinary";
 import { getAutoPostedTracker, addPostToTracker } from "@/app/actions";
 
@@ -173,8 +173,30 @@ export async function GET(req: Request) {
       const networksSnapshot = await firestore.collection("users").doc(email).collection("socialNetworks").get();
       const userNetworks = networksSnapshot.docs.map(mapDocToSocialNetwork);
 
-      const activeNetworks = userNetworks.filter(n => n.enabled && n.prompt && n.name.toLowerCase() !== "instagram");
+      let activeNetworks = userNetworks.filter(n => n.enabled && n.prompt && n.name.toLowerCase() !== "instagram");
       if (activeNetworks.length === 0) continue;
+
+      try {
+        const pmpAccounts = await getPostMyPostAccounts(postMyPostToken, ppmProjectId);
+        const validAccountIds = new Set(pmpAccounts.map((account) => String(account.id)));
+        const beforeCount = activeNetworks.length;
+        activeNetworks = activeNetworks.filter((network) => {
+          const accountId = network.accountId === undefined || network.accountId === null
+            ? ""
+            : String(network.accountId).trim();
+          if (!accountId || validAccountIds.has(accountId)) return true;
+
+          console.log(`Skipping unavailable PMP account ${accountId} (${network.name}) for ${email}`);
+          return false;
+        });
+
+        if (beforeCount > 0 && activeNetworks.length === 0) {
+          console.warn(`All active PMP accounts are unavailable for ${email}; skipping auto-post.`);
+          continue;
+        }
+      } catch (accountErr: any) {
+        console.error(`Failed to validate PMP accounts for ${email}:`, accountErr.message);
+      }
 
       for (const post of eligiblePosts) {
         console.log(`Auto-posting postKey ${post.postKey} for user ${email}`);
@@ -358,7 +380,8 @@ export async function GET(req: Request) {
             console.error(`Failed to update UI state for ${post.postKey}:`, uiErr.message);
           }
         } catch (err: any) {
-             console.error(`Failed to publish ${post.postKey} to PMP:`, err.message);
+             const detailSummary = details.map((detail: any) => `${detail.account_id}:${detail.publication_type}`).join(",");
+             console.error(`Failed to publish ${post.postKey} to PMP (details ${detailSummary}):`, err.message);
         }
       }
     }
