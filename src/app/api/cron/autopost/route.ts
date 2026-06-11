@@ -6,6 +6,7 @@ import { type SocialNetwork } from "@/lib/types";
 import { adaptText } from "@/lib/openai";
 import { uploadMediaUrlsToPostMyPost, createPublication, getPostMyPostAccounts } from "@/lib/postmypost";
 import { createCloudinarySlideshowUrl } from "@/lib/cloudinary";
+import { ensurePublicationTextLimits } from "@/lib/publishingText";
 import { getAutoPostedTracker, addPostToTracker } from "@/app/actions";
 
 export const maxDuration = 300; // Allow 5 mins for cron execution if on Vercel Pro
@@ -178,9 +179,22 @@ export async function GET(req: Request) {
 
       try {
         const pmpAccounts = await getPostMyPostAccounts(postMyPostToken, ppmProjectId);
-        const validAccountIds = new Set(pmpAccounts.map((account) => String(account.id)));
+        const pmpAccountsById = new Map(pmpAccounts.map((account) => [String(account.id), account]));
+        const validAccountIds = new Set(pmpAccountsById.keys());
         const beforeCount = activeNetworks.length;
-        activeNetworks = activeNetworks.filter((network) => {
+        activeNetworks = activeNetworks.map((network) => {
+          const accountId = network.accountId === undefined || network.accountId === null
+            ? ""
+            : String(network.accountId).trim();
+          const account = accountId ? pmpAccountsById.get(accountId) : null;
+          if (account) {
+            return {
+              ...network,
+              pmpChannelId: account.channel_id ?? account.chanel_id,
+            };
+          }
+          return network;
+        }).filter((network) => {
           const accountId = network.accountId === undefined || network.accountId === null
             ? ""
             : String(network.accountId).trim();
@@ -309,15 +323,27 @@ export async function GET(req: Request) {
 
           accountIds.push(accountId);
           const pubType = Number(pubSettings.publicationType || 1);
+          const limitedText = await ensurePublicationTextLimits({
+            network: {
+              name: net.name,
+              platform: net.platform,
+              pmpChannelId: net.pmpChannelId,
+            },
+            title: net.adaptedTitle || "",
+            content: net.adaptedText || post.caption || "",
+            openAiKey,
+            model: openAiModel,
+            logContext: `${email} ${net.name || accountId}`,
+          });
           
           const detail: any = {
             account_id: accountId,
             publication_type: pubType,
-            content: net.adaptedText || post.caption || '',
+            content: limitedText.content,
             file_ids: currentFileIds
           };
 
-          if (net.adaptedTitle) detail.title = net.adaptedTitle;
+          if (limitedText.title) detail.title = limitedText.title;
           const effectivePinLink = pubSettings.pinterestLink || settings["PINTEREST_LINK"] || '';
           if (effectivePinLink && (net.platform || net.name).toLowerCase().includes('pinterest')) {
             detail.link = effectivePinLink;

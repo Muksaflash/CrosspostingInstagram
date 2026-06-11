@@ -12,6 +12,7 @@ export interface PostMyPostAccount {
   id: string | number;
   name?: string;
   chanel_id?: string | number;
+  channel_id?: string | number;
   connection_status?: string | number;
 }
 

@@ -17,6 +17,7 @@ export interface SocialNetwork {
   prompt: string;
   accountId?: string; // Newly added for PostMyPost integration
   platform?: string; // E.g., 'telegram', 'vkontakte'
+  pmpChannelId?: string | number;
   adaptedText?: string;
   adaptedTitle?: string;
   status?: "idle" | "loading" | "rewriting" | "publishing" | "success" | "error";

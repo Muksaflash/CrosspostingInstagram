@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { getUserSettings } from "@/app/actions";
 import { uploadMediaUrlsToPostMyPost, createPublication, getPostMyPostAccounts } from "@/lib/postmypost";
 import { createCloudinarySlideshowUrl } from "@/lib/cloudinary";
+import { ensurePublicationTextLimits } from "@/lib/publishingText";
 import { firestore } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import type { DocumentReference } from "firebase-admin/firestore";
@@ -12,6 +13,7 @@ type PublishNetwork = {
   accountId?: string | number;
   name?: string;
   platform?: string;
+  pmpChannelId?: string | number;
   adaptedText?: string;
   adaptedTitle?: string;
   publishingSettings?: {
@@ -196,10 +198,14 @@ export async function POST(req: Request) {
     const postIdentity = normalizePostIdentity(postKey, postUrl, mediaUrls);
     const skippedUnavailableAccounts: Array<{ accountId: string; networkName: string; status: string }> = [];
     let availableAccountIds: Set<string> | null = null;
+    const pmpAccountsById = new Map<string, { channel_id?: string | number; chanel_id?: string | number }>();
 
     try {
       const pmpAccounts = await getPostMyPostAccounts(token, projectId);
       availableAccountIds = new Set(pmpAccounts.map((account) => String(account.id)));
+      for (const account of pmpAccounts) {
+        pmpAccountsById.set(String(account.id), account);
+      }
     } catch (accountErr) {
       console.error("Failed to validate PMP accounts before publish:", accountErr);
     }
@@ -283,6 +289,8 @@ export async function POST(req: Request) {
     for (const candidate of claimed) {
       const net = candidate.net;
       const pubSettings = net.publishingSettings || {};
+      const pmpAccount = pmpAccountsById.get(candidate.accountId);
+      const pmpChannelId = net.pmpChannelId ?? pmpAccount?.channel_id ?? pmpAccount?.chanel_id;
 
       const isSingleImage = !hasVideo && mediaUrls.length === 1;
       const isPhotoCarousel = !hasVideo && mediaUrls.length > 1;
@@ -350,15 +358,27 @@ export async function POST(req: Request) {
       accountIds.push(candidate.accountIdValue);
 
       const pubType = Number(pubSettings.publicationType || 1);
+      const limitedText = await ensurePublicationTextLimits({
+        network: {
+          name: net.name,
+          platform: net.platform,
+          pmpChannelId,
+        },
+        title: net.adaptedTitle || "",
+        content: net.adaptedText || originalCaption || "",
+        openAiKey: settings?.OPENAI_API_KEY,
+        model: settings?.OPENAI_MODEL || "gpt-5.2",
+        logContext: `${userDataKey} ${net.name || candidate.accountId}`,
+      });
       
       const detail: Record<string, unknown> = {
         account_id: candidate.accountIdValue,
         publication_type: pubType,
-        content: net.adaptedText || originalCaption || '',
+        content: limitedText.content,
         file_ids: currentFileIds
       };
 
-      if (net.adaptedTitle) detail.title = net.adaptedTitle;
+      if (limitedText.title) detail.title = limitedText.title;
       
       const effectivePinLink = pubSettings.pinterestLink || settings?.PINTEREST_LINK || '';
       if (effectivePinLink && (net.platform || net.name || '').toLowerCase().includes('pinterest')) {
