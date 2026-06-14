@@ -12,13 +12,32 @@ import { getAutoPostedTracker, addPostToTracker } from "@/app/actions";
 export const maxDuration = 300; // Allow 5 mins for cron execution if on Vercel Pro
 export const dynamic = 'force-dynamic'; // Ensure it's not cached
 
+const TRIAL_RELEASE_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
+
+type AutoPostBaseline = {
+  postKeys: Set<string>;
+  created: boolean;
+};
+
 /**
  * Checks if a post is eligible for auto-posting.
  */
-function isPostEligible(post: InstagramPost, enabledAtTime: number, trackers: string[]): boolean {
+function isPostEligible(
+  post: InstagramPost,
+  enabledAtTime: number,
+  trackers: string[],
+  baselinePostKeys: Set<string>
+): boolean {
   const postTimeMs = post.takenAt * 1000;
-  if (postTimeMs < enabledAtTime) return false;
   if (trackers.includes(post.postKey)) return false;
+  if (postTimeMs >= enabledAtTime) return true;
+
+  // Instagram Trial Reels can become visible on the public profile after their
+  // original takenAt time. If they were not visible when auto-posting was
+  // initialized, allow a small pre-enable window to catch that release.
+  if (postTimeMs < enabledAtTime - TRIAL_RELEASE_LOOKBACK_MS) return false;
+  if (baselinePostKeys.has(post.postKey)) return false;
+
   return true;
 }
 
@@ -48,6 +67,50 @@ function mapDocToSocialNetwork(doc: any): SocialNetwork {
     _docId: doc.id,
     ...doc.data()
   } as SocialNetwork;
+}
+
+async function getOrCreateAutoPostBaseline(
+  email: string,
+  enabledAtTime: number,
+  fetchedPosts: InstagramPost[]
+): Promise<AutoPostBaseline> {
+  const docRef = firestore
+    .collection("users")
+    .doc(email)
+    .collection("cache")
+    .doc("autoPostBaseline");
+
+  try {
+    const doc = await docRef.get();
+    const data = doc.exists ? doc.data() : null;
+    const storedEnabledAt = Number(data?.enabledAt || 0);
+    const storedPostKeys = Array.isArray(data?.postKeys) ? data.postKeys : [];
+
+    if (doc.exists && storedEnabledAt === enabledAtTime) {
+      return { postKeys: new Set(storedPostKeys.map(String)), created: false };
+    }
+
+    const baselineKeys = fetchedPosts
+      .filter((post) => post.takenAt * 1000 < enabledAtTime)
+      .map((post) => post.postKey)
+      .filter(Boolean);
+
+    await docRef.set({
+      enabledAt: enabledAtTime,
+      postKeys: Array.from(new Set(baselineKeys)).slice(0, 100),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    return { postKeys: new Set(baselineKeys), created: true };
+  } catch (e) {
+    console.error(`Failed to read/write auto-post baseline for ${email}:`, e);
+    const fallbackKeys = fetchedPosts
+      .filter((post) => post.takenAt * 1000 < enabledAtTime)
+      .map((post) => post.postKey)
+      .filter(Boolean);
+    return { postKeys: new Set(fallbackKeys), created: false };
+  }
 }
 
 export async function GET(req: Request) {
@@ -161,11 +224,29 @@ export async function GET(req: Request) {
 
       // Filter eligible posts
       const trackers = await getAutoPostedTracker(email);
+      const baseline = await getOrCreateAutoPostBaseline(email, enabledAtTime, fetchedData.posts);
       const eligiblePosts = fetchedData.posts.filter((post: InstagramPost) =>
-        isPostEligible(post, enabledAtTime, trackers)
+        isPostEligible(post, enabledAtTime, trackers, baseline.postKeys)
       );
 
-      if (eligiblePosts.length === 0) continue;
+      if (eligiblePosts.length === 0) {
+        const newest = fetchedData.posts[0];
+        if (newest) {
+          const newestTimeMs = newest.takenAt * 1000;
+          const reason = trackers.includes(newest.postKey)
+            ? "newest_tracked"
+            : newestTimeMs < enabledAtTime
+              ? (baseline.postKeys.has(newest.postKey) ? "newest_before_enable_baseline" : "newest_before_enable_outside_rules")
+              : "no_untracked_posts";
+          console.log(
+            `No eligible auto-posts for ${email}: fetched=${fetchedData.posts.length}, ` +
+            `newest=${newest.postKey}/${new Date(newestTimeMs).toISOString()}, ` +
+            `enabledAt=${new Date(enabledAtTime).toISOString()}, tracker=${trackers.length}, ` +
+            `baseline=${baseline.postKeys.size}${baseline.created ? " created" : ""}, reason=${reason}`
+          );
+        }
+        continue;
+      }
 
       // We should post them from oldest to newest (to preserve chronological order if multiple are missed)
       eligiblePosts.sort(comparePostsByTakenAt);
