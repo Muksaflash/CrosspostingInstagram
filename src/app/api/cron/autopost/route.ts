@@ -13,6 +13,7 @@ export const maxDuration = 300; // Allow 5 mins for cron execution if on Vercel 
 export const dynamic = 'force-dynamic'; // Ensure it's not cached
 
 const TRIAL_RELEASE_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
+const AUTOPOST_ENABLE_BOUNDARY_GRACE_MS = 10 * 60 * 1000;
 
 type AutoPostBaseline = {
   postKeys: Set<string>;
@@ -91,7 +92,7 @@ async function getOrCreateAutoPostBaseline(
     }
 
     const baselineKeys = fetchedPosts
-      .filter((post) => post.takenAt * 1000 < enabledAtTime)
+      .filter((post) => post.takenAt * 1000 < enabledAtTime - AUTOPOST_ENABLE_BOUNDARY_GRACE_MS)
       .map((post) => post.postKey)
       .filter(Boolean);
 
@@ -106,7 +107,7 @@ async function getOrCreateAutoPostBaseline(
   } catch (e) {
     console.error(`Failed to read/write auto-post baseline for ${email}:`, e);
     const fallbackKeys = fetchedPosts
-      .filter((post) => post.takenAt * 1000 < enabledAtTime)
+      .filter((post) => post.takenAt * 1000 < enabledAtTime - AUTOPOST_ENABLE_BOUNDARY_GRACE_MS)
       .map((post) => post.postKey)
       .filter(Boolean);
     return { postKeys: new Set(fallbackKeys), created: false };
