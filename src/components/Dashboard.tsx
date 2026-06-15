@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Instagram, Wand2, Send, RefreshCw, Settings, Search, Key, Save, LogOut, Plus, X, Trash2, Zap, ImageOff } from "lucide-react";
-import { saveSocialNetwork, saveUserSetting, getUserSettings, getQuotas } from "@/app/actions";
+import { saveSocialNetwork, saveUserSetting, setAutoPostEnabledSetting, getUserSettings, getQuotas } from "@/app/actions";
 import { translations } from "@/i18n/translations";
 import { defaultPrompts, PLATFORM_KEYS, type PlatformKey, detectPlatform } from "@/lib/prompts";
 import { type SocialNetwork, type PublishingSettings } from "@/lib/types";
@@ -135,6 +135,8 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
   const [scheduleDate, setScheduleDate] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [autoPostEnabled, setAutoPostEnabled] = useState(false);
+  const [autoPostEnabledSince, setAutoPostEnabledSince] = useState<string>("");
+  const [autoPostSaving, setAutoPostSaving] = useState(false);
   const [pinterestLink, setPinterestLink] = useState<string>("");
 
   const [quotas, setQuotas] = useState<any>(null);
@@ -215,7 +217,11 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
       } catch (e) {
         setCustomPrompts({});
       }
-      setAutoPostEnabled(!!settings.AUTO_POST_ENABLED_AT);
+      const autoEnabled = settings.AUTO_POST_ENABLED !== undefined && settings.AUTO_POST_ENABLED !== ''
+        ? settings.AUTO_POST_ENABLED === 'true'
+        : !!settings.AUTO_POST_ENABLED_AT;
+      setAutoPostEnabled(autoEnabled);
+      setAutoPostEnabledSince(settings.AUTO_POST_ENABLED_SINCE || settings.AUTO_POST_ENABLED_AT || settings.AUTO_POST_WATERMARK_AT || '');
       setPinterestLink(settings.PINTEREST_LINK || '');
     }
     setKeysLoading(false);
@@ -223,6 +229,40 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
 
   const handleSaveKey = async (key: string, value: string) => {
     await saveUserSetting(key, value);
+  };
+
+  const formatAutoPostDate = (value: string) => {
+    const timestamp = Number(value);
+    if (!timestamp) return "";
+
+    try {
+      return new Intl.DateTimeFormat(language === 'ru' ? 'ru-RU' : 'en-US', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }).format(new Date(timestamp));
+    } catch {
+      return new Date(timestamp).toLocaleString();
+    }
+  };
+
+  const handleAutoPostToggle = async (checked: boolean) => {
+    const previousEnabled = autoPostEnabled;
+    const previousSince = autoPostEnabledSince;
+
+    setAutoPostEnabled(checked);
+    setAutoPostSaving(true);
+    try {
+      const result = await setAutoPostEnabledSetting(checked);
+      setAutoPostEnabled(result.enabled);
+      setAutoPostEnabledSince(result.enabledSince || '');
+    } catch (e) {
+      console.error(e);
+      setAutoPostEnabled(previousEnabled);
+      setAutoPostEnabledSince(previousSince);
+      alert(t('dashboard', 'autoPost.saveError'));
+    } finally {
+      setAutoPostSaving(false);
+    }
   };
 
   const handleSaveCustomPrompt = async (platform: PlatformKey, text: string) => {
@@ -955,21 +995,30 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
               {/* Right Column: Networks */}
               <div className="space-y-6 lg:col-span-2">
                 {/* Auto-Posting Toggle Card */}
-                <div className="rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-5 shadow-sm flex items-center justify-between dark:from-zinc-900 dark:to-zinc-800 dark:border-zinc-700">
-                  <div>
+                <div className="flex flex-col gap-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-5 shadow-sm dark:from-zinc-900 dark:to-zinc-800 dark:border-zinc-700 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
                     <span className="font-semibold text-gray-800 dark:text-gray-200 text-lg">{t('dashboard', 'autoPost.title')}</span>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                       {t('dashboard', 'autoPost.desc')}
                     </p>
+                    {autoPostEnabled && autoPostEnabledSince && (
+                      <p className="mt-2 text-xs font-medium text-blue-700 dark:text-blue-300">
+                        {t('dashboard', 'autoPost.enabledSince')}: {formatAutoPostDate(autoPostEnabledSince)}
+                      </p>
+                    )}
+                    {autoPostSaving && (
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {t('dashboard', 'autoPost.saving')}
+                      </p>
+                    )}
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer ml-4 min-w-max">
+                  <label className={`relative inline-flex min-w-max items-center self-start sm:self-center ${autoPostSaving ? 'cursor-wait opacity-70' : 'cursor-pointer'}`}>
                     <input
                       type="checkbox"
                       checked={autoPostEnabled}
+                      disabled={autoPostSaving}
                       onChange={async (e) => {
-                        const checked = e.target.checked;
-                        setAutoPostEnabled(checked);
-                        await handleSaveKey('AUTO_POST_ENABLED_AT', checked ? Date.now().toString() : '');
+                        await handleAutoPostToggle(e.target.checked);
                       }}
                       className="sr-only peer"
                     />

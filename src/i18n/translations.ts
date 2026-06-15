@@ -71,7 +71,10 @@ export const translations = {
       mediaCountOf: "of",
       autoPost: {
         title: "Automatic Publishing",
-        desc: "Checks for new Instagram posts every hour and publishes to enabled networks."
+        desc: "Checks for new Instagram posts every hour and publishes to enabled networks.",
+        enabledSince: "Enabled since",
+        saving: "Saving changes...",
+        saveError: "Could not save automatic publishing settings. Please try again."
       },
       pinterestLink: {
         title: "Link for Pinterest",
@@ -211,7 +214,10 @@ export const translations = {
       mediaCountOf: "из",
       autoPost: {
         title: "Автоматическая выкладка",
-        desc: "Каждый час проверяет новые посты в Instagram и публикует во включенные сети."
+        desc: "Каждый час проверяет новые посты в Instagram и публикует во включенные сети.",
+        enabledSince: "Включено с",
+        saving: "Сохраняем изменения...",
+        saveError: "Не удалось сохранить настройки автоматической выкладки. Попробуйте ещё раз."
       },
       pinterestLink: {
         title: "Ссылка для Pinterest",

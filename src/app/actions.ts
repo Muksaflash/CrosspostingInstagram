@@ -3,7 +3,9 @@
 
 import { auth } from "@/auth";
 import { firestore } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { type SocialNetwork } from "@/lib/types";
 import { type InstagramPost } from "@/lib/instagram";
 
@@ -59,6 +61,44 @@ async function getCurrentUserDataKey(): Promise<string | null> {
   return sessionEmail || null;
 }
 
+async function getRequestAuditMetadata() {
+  try {
+    const h = await headers();
+    const forwardedFor = h.get("x-forwarded-for") || "";
+    return {
+      ip: forwardedFor.split(",")[0]?.trim() || h.get("x-real-ip") || "",
+      userAgent: h.get("user-agent") || "",
+      referer: h.get("referer") || "",
+    };
+  } catch {
+    return { ip: "", userAgent: "", referer: "" };
+  }
+}
+
+function summarizeSettingValue(key: string, value: unknown) {
+  const raw = value === undefined || value === null ? "" : String(value);
+  const sensitive = /(KEY|TOKEN|SECRET)/i.test(key);
+  const tooLong = raw.length > 500;
+
+  return {
+    present: raw.length > 0,
+    length: raw.length,
+    redacted: sensitive,
+    truncated: !sensitive && tooLong,
+    value: sensitive ? "" : raw.slice(0, 500),
+  };
+}
+
+async function getActorAuditData() {
+  const session = await auth();
+  const meta = await getRequestAuditMetadata();
+  return {
+    actorEmail: session?.user?.email || "",
+    actorUserId: session?.user?.id || "",
+    ...meta,
+  };
+}
+
 export async function getUserSettings() {
   const userDataKey = await getCurrentUserDataKey();
   if (!userDataKey) return null;
@@ -87,16 +127,129 @@ export async function saveUserSetting(key: string, value: string) {
   if (!userDataKey) throw new Error("Unauthorized");
 
   try {
-    await firestore
+    const settingRef = firestore
       .collection("users")
       .doc(userDataKey)
       .collection("settings")
-      .doc(key)
-      .set({ value });
+      .doc(key);
+    const previous = await settingRef.get();
+    const previousValue = previous.exists ? previous.data()?.value : "";
+    const auditData = await getActorAuditData();
+    const batch = firestore.batch();
+
+    batch.set(settingRef, { value });
+    batch.set(
+      firestore
+        .collection("users")
+        .doc(userDataKey)
+        .collection("settingAudit")
+        .doc(),
+      {
+        settingKey: key,
+        action: "save_setting",
+        previousValue: summarizeSettingValue(key, previousValue),
+        newValue: summarizeSettingValue(key, value),
+        changedAt: FieldValue.serverTimestamp(),
+        changedAtMs: Date.now(),
+        ...auditData,
+      }
+    );
+
+    await batch.commit();
 
     revalidatePath("/");
   } catch (e) {
     console.error("Firestore Error (saveUserSetting):", e);
+  }
+}
+
+export async function setAutoPostEnabledSetting(enabled: boolean) {
+  const userDataKey = await getCurrentUserDataKey();
+  if (!userDataKey) throw new Error("Unauthorized");
+
+  const settingsRef = firestore
+    .collection("users")
+    .doc(userDataKey)
+    .collection("settings");
+  const keys = [
+    "AUTO_POST_ENABLED",
+    "AUTO_POST_ENABLED_SINCE",
+    "AUTO_POST_WATERMARK_AT",
+    "AUTO_POST_ENABLED_AT",
+  ];
+
+  try {
+    const snapshots = await Promise.all(keys.map((key) => settingsRef.doc(key).get()));
+    const previousValues: Record<string, string> = {};
+    snapshots.forEach((snapshot, index) => {
+      previousValues[keys[index]] = snapshot.exists ? String(snapshot.data()?.value || "") : "";
+    });
+
+    const now = Date.now();
+    const nowStr = String(now);
+    const batch = firestore.batch();
+    const setSetting = (key: string, value: string) => {
+      batch.set(settingsRef.doc(key), { value });
+    };
+
+    setSetting("AUTO_POST_ENABLED", enabled ? "true" : "false");
+    if (enabled) {
+      setSetting("AUTO_POST_ENABLED_SINCE", nowStr);
+      setSetting("AUTO_POST_WATERMARK_AT", nowStr);
+      // Legacy field kept in sync so an old revision/rollback still behaves safely.
+      setSetting("AUTO_POST_ENABLED_AT", nowStr);
+      batch.delete(
+        firestore
+          .collection("users")
+          .doc(userDataKey)
+          .collection("cache")
+          .doc("autoPostBaseline")
+      );
+    } else {
+      setSetting("AUTO_POST_DISABLED_AT", nowStr);
+      setSetting("AUTO_POST_ENABLED_AT", "");
+    }
+
+    const auditData = await getActorAuditData();
+    batch.set(
+      firestore
+        .collection("users")
+        .doc(userDataKey)
+        .collection("settingAudit")
+        .doc(),
+      {
+        settingKey: "AUTO_POST_ENABLED",
+        action: enabled ? "enable_auto_post" : "disable_auto_post",
+        previousValues: Object.fromEntries(
+          Object.entries(previousValues).map(([key, value]) => [key, summarizeSettingValue(key, value)])
+        ),
+        newValues: {
+          AUTO_POST_ENABLED: summarizeSettingValue("AUTO_POST_ENABLED", enabled ? "true" : "false"),
+          AUTO_POST_ENABLED_SINCE: summarizeSettingValue(
+            "AUTO_POST_ENABLED_SINCE",
+            enabled ? nowStr : previousValues.AUTO_POST_ENABLED_SINCE
+          ),
+          AUTO_POST_WATERMARK_AT: summarizeSettingValue(
+            "AUTO_POST_WATERMARK_AT",
+            enabled ? nowStr : previousValues.AUTO_POST_WATERMARK_AT
+          ),
+        },
+        changedAt: FieldValue.serverTimestamp(),
+        changedAtMs: now,
+        ...auditData,
+      }
+    );
+
+    await batch.commit();
+    revalidatePath("/");
+
+    return {
+      enabled,
+      enabledSince: enabled ? nowStr : (previousValues.AUTO_POST_ENABLED_SINCE || previousValues.AUTO_POST_ENABLED_AT || ""),
+    };
+  } catch (e) {
+    console.error("Firestore Error (setAutoPostEnabledSetting):", e);
+    throw e;
   }
 }
 

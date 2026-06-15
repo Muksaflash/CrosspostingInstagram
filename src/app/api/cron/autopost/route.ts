@@ -70,6 +70,24 @@ function mapDocToSocialNetwork(doc: any): SocialNetwork {
   } as SocialNetwork;
 }
 
+function isAutoPostEnabled(settings: Record<string, string>): boolean {
+  const explicitFlag = settings["AUTO_POST_ENABLED"];
+  if (explicitFlag !== undefined && explicitFlag !== "") {
+    return explicitFlag === "true";
+  }
+
+  return !!settings["AUTO_POST_ENABLED_AT"];
+}
+
+function getAutoPostWatermark(settings: Record<string, string>): number | null {
+  const raw =
+    settings["AUTO_POST_WATERMARK_AT"] ||
+    settings["AUTO_POST_ENABLED_AT"] ||
+    settings["AUTO_POST_ENABLED_SINCE"];
+  const value = parseInt(raw || "", 10);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
 async function getOrCreateAutoPostBaseline(
   email: string,
   enabledAtTime: number,
@@ -166,13 +184,15 @@ export async function GET(req: Request) {
       const settings = settingsByEmail[email] || {};
 
       // Check if auto-posting is actually enabled for this user
-      const autoPostEnabledAtStr = settings["AUTO_POST_ENABLED_AT"];
-      if (!autoPostEnabledAtStr) {
+      if (!isAutoPostEnabled(settings)) {
         continue; // Auto-posting is turned off
       }
 
-      const enabledAtTime = parseInt(autoPostEnabledAtStr, 10);
-      if (isNaN(enabledAtTime)) continue;
+      const enabledAtTime = getAutoPostWatermark(settings);
+      if (!enabledAtTime) {
+        console.warn(`Auto-posting is enabled for ${email}, but watermark is missing.`);
+        continue;
+      }
 
       const instagramUrl = settings["INSTAGRAM_URL"];
       const rapidApiKey = settings["RAPIDAPI_KEY"];
