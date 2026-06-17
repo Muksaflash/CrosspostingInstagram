@@ -20,6 +20,8 @@ export interface SocialNetwork {
   pmpChannelId?: string | number;
   adaptedText?: string;
   adaptedTitle?: string;
+  textLimitAdjusted?: boolean;
+  textLimitPlatform?: string;
   status?: "idle" | "loading" | "rewriting" | "publishing" | "success" | "error";
   errorMsg?: string;
   publishingSettings?: PublishingSettings;

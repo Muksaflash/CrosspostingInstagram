@@ -5,6 +5,7 @@ import {
   getPlatformTextLimits,
   getTextOverflow,
   type PlatformTextNetwork,
+  type TextOverflow,
 } from "@/lib/platformTextLimits";
 
 export interface EnsurePublicationTextInput {
@@ -20,7 +21,15 @@ export interface EnsurePublicationTextResult {
   title: string;
   content: string;
   platform?: string;
+  platformLabel?: string;
   shortened: boolean;
+}
+
+export interface PublicationTextLimitViolation {
+  platform: string;
+  platformLabel: string;
+  overflow: TextOverflow;
+  summary: string;
 }
 
 function limitLabel(max: number | undefined, unit: string | undefined): string | undefined {
@@ -28,6 +37,23 @@ function limitLabel(max: number | undefined, unit: string | undefined): string |
   if (unit === "utf8Bytes") return `${max} UTF-8 bytes`;
   if (unit === "utf16") return `${max} UTF-16 units`;
   return `${max} characters`;
+}
+
+export function getPublicationTextLimitViolation(
+  input: Pick<EnsurePublicationTextInput, "network" | "title" | "content">
+): PublicationTextLimitViolation | null {
+  const limits = getPlatformTextLimits(input.network);
+  if (!limits) return null;
+
+  const overflow = getTextOverflow(input.content, input.title, limits);
+  if (!overflow) return null;
+
+  return {
+    platform: limits.platform,
+    platformLabel: limits.label,
+    overflow,
+    summary: formatOverflow(overflow),
+  };
 }
 
 export async function ensurePublicationTextLimits(
@@ -48,12 +74,13 @@ export async function ensurePublicationTextLimits(
       title: input.title,
       content: input.content,
       platform: limits.platform,
+      platformLabel: limits.label,
       shortened: false,
     };
   }
 
   const context = input.logContext ? ` (${input.logContext})` : "";
-  console.log(`Text exceeds ${limits.label} limits${context}: ${formatOverflow(overflow)}. Shortening before publish.`);
+  console.log(`Text exceeds ${limits.label} limits${context}: ${formatOverflow(overflow)}. Shortening.`);
 
   let title = input.title;
   let content = input.content;
@@ -71,7 +98,7 @@ export async function ensurePublicationTextLimits(
       });
       title = shortened.title || title;
       content = shortened.text || content;
-    } catch (err: any) {
+    } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`Failed to shorten text for ${limits.label}${context}:`, message);
     }
@@ -89,6 +116,7 @@ export async function ensurePublicationTextLimits(
     title: enforced.title,
     content: enforced.content,
     platform: limits.platform,
+    platformLabel: limits.label,
     shortened: true,
   };
 }

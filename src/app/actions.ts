@@ -15,6 +15,12 @@ type FetchPostResult =
 
 type FetchPostFailure = Extract<FetchPostResult, { ok: false }>;
 
+type AdaptPostTextNetwork = {
+  name?: string;
+  platform?: string;
+  pmpChannelId?: string | number;
+};
+
 function toFetchPostError(error: unknown): FetchPostFailure {
   const message = error instanceof Error ? error.message : String(error);
   const lower = message.toLowerCase();
@@ -428,7 +434,13 @@ export async function addPostToTracker(email: string, postKey: string) {
   }
 }
 
-export async function adaptPostText(text: string, prompt: string, mainPrompt: string, model: string) {
+export async function adaptPostText(
+  text: string,
+  prompt: string,
+  mainPrompt: string,
+  model: string,
+  network?: AdaptPostTextNetwork
+) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
   
@@ -437,7 +449,32 @@ export async function adaptPostText(text: string, prompt: string, mainPrompt: st
   if (!openAiKey) throw new Error("OPENAI_API_KEY not configured in settings");
 
   const { adaptText } = await import("@/lib/openai");
-  return await adaptText(text, prompt, mainPrompt, model, openAiKey);
+  const adapted = await adaptText(text, prompt, mainPrompt, model, openAiKey);
+
+  if (!network) {
+    return {
+      ...adapted,
+      shortened: false,
+    };
+  }
+
+  const { ensurePublicationTextLimits } = await import("@/lib/publishingText");
+  const limited = await ensurePublicationTextLimits({
+    network,
+    title: adapted.title,
+    content: adapted.text,
+    openAiKey,
+    model,
+    logContext: `${session.user.email || session.user.id || "user"} ${network.name || network.platform || "network"} after adaptation`,
+  });
+
+  return {
+    title: limited.title,
+    text: limited.content,
+    shortened: limited.shortened,
+    platform: limited.platform,
+    platformLabel: limited.platformLabel,
+  };
 }
 
 export async function deleteSocialNetwork(docId: string) {

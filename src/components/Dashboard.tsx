@@ -360,10 +360,17 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
     const promises = newNetworks.map(async (net, i) => {
       if (net.enabled && net.prompt) {
         try {
-          const adapted = await adaptPostText(post.caption, net.prompt, apiKeys.MAIN_PROMPT, apiKeys.OPENAI_MODEL || 'gpt-5.2');
+          const adapted = await adaptPostText(post.caption, net.prompt, apiKeys.MAIN_PROMPT, apiKeys.OPENAI_MODEL || 'gpt-5.2', {
+            name: net.name,
+            platform: net.platform,
+            pmpChannelId: net.pmpChannelId,
+          });
           newNetworks[i].adaptedTitle = adapted.title;
           newNetworks[i].adaptedText = adapted.text;
+          newNetworks[i].textLimitAdjusted = Boolean(adapted.shortened);
+          newNetworks[i].textLimitPlatform = adapted.platformLabel || adapted.platform || '';
           newNetworks[i].status = 'success';
+          newNetworks[i].errorMsg = undefined;
           await saveSocialNetwork(net._docId || net.accountId || net.name, newNetworks[i]);
         } catch (error: any) {
           console.error("Rewrite Error:", error);
@@ -380,6 +387,15 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
   type PublishErrorResponse = {
     code?: string;
     message?: string;
+    details?: {
+      platformLabel?: string;
+      networkName?: string;
+      contentLength?: number;
+      contentMax?: number;
+      titleLength?: number;
+      titleMax?: number;
+      summary?: string;
+    };
   };
 
   const readPublishError = async (res: Response): Promise<PublishErrorResponse> => {
@@ -388,7 +404,8 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
       const parsed = JSON.parse(text);
       return {
         code: typeof parsed?.code === 'string' ? parsed.code : undefined,
-        message: typeof parsed?.message === 'string' ? parsed.message : text
+        message: typeof parsed?.message === 'string' ? parsed.message : text,
+        details: parsed?.details && typeof parsed.details === 'object' ? parsed.details : undefined
       };
     } catch {
       return { message: text };
@@ -406,6 +423,26 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
       return language === 'ru'
         ? 'Не получилось создать слайдшоу: сервис Cloudinary не настроен. Проверьте настройки или обратитесь к администратору.'
         : 'Could not create the slideshow: Cloudinary is not configured. Check the settings or contact the administrator.';
+    }
+
+    if (error.code === 'TEXT_LIMIT_EXCEEDED') {
+      const details = error.details || {};
+      const platform = details.platformLabel || details.networkName || 'platform';
+      const parts: string[] = [];
+      if (details.contentLength && details.contentMax) {
+        parts.push(language === 'ru'
+          ? `текст ${details.contentLength}/${details.contentMax}`
+          : `text ${details.contentLength}/${details.contentMax}`);
+      }
+      if (details.titleLength && details.titleMax) {
+        parts.push(language === 'ru'
+          ? `заголовок ${details.titleLength}/${details.titleMax}`
+          : `title ${details.titleLength}/${details.titleMax}`);
+      }
+      const limitDetails = parts.length ? ` (${parts.join(', ')})` : '';
+      return language === 'ru'
+        ? `Текст для ${platform} стал длиннее допустимого лимита${limitDetails}. Сократите его в поле адаптированного текста или нажмите «Переписать текст» ещё раз.`
+        : `The text for ${platform} is over the allowed limit${limitDetails}. Shorten it in the adapted text field or click "Rewrite text" again.`;
     }
 
     if (error.message && error.message !== 'Internal Server Error') {
@@ -603,10 +640,17 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
 
     try {
       const { adaptPostText } = await import("@/app/actions");
-      const adapted = await adaptPostText(post.caption, net.prompt, apiKeys.MAIN_PROMPT, apiKeys.OPENAI_MODEL || 'gpt-5.2');
+      const adapted = await adaptPostText(post.caption, net.prompt, apiKeys.MAIN_PROMPT, apiKeys.OPENAI_MODEL || 'gpt-5.2', {
+        name: net.name,
+        platform: net.platform,
+        pmpChannelId: net.pmpChannelId,
+      });
       newNetworks[index].adaptedTitle = adapted.title;
       newNetworks[index].adaptedText = adapted.text;
+      newNetworks[index].textLimitAdjusted = Boolean(adapted.shortened);
+      newNetworks[index].textLimitPlatform = adapted.platformLabel || adapted.platform || '';
       newNetworks[index].status = 'success';
+      newNetworks[index].errorMsg = undefined;
       saveSocialNetwork(net._docId || net.accountId || net.name, newNetworks[index]);
     } catch (error: any) {
       console.error("Single Rewrite Error:", error);
@@ -1169,6 +1213,11 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                             {net.status === 'success' && (
                               <p className="text-green-600 dark:text-emerald-200 text-xs mt-1 font-medium bg-green-50 dark:bg-emerald-950/50 p-2 rounded border border-green-100 dark:border-emerald-900/60">{t('dashboard', 'networkCard.success')}</p>
                             )}
+                            {net.textLimitAdjusted && (
+                              <p className="text-amber-700 dark:text-amber-200 text-xs mt-1 font-medium bg-amber-50 dark:bg-amber-950/40 p-2 rounded border border-amber-100 dark:border-amber-900/60">
+                                {t('dashboard', 'networkCard.textShortened').replace('{platform}', net.textLimitPlatform || net.name)}
+                              </p>
+                            )}
 
                             <div className="space-y-1">
                               <label className="text-xs font-medium text-gray-600 dark:text-gray-400">{t('dashboard', 'networkCard.promptLabel')}</label>
@@ -1196,6 +1245,8 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                   onChange={(e) => {
                                     const newNet = [...networks];
                                     newNet[idx].adaptedTitle = e.target.value;
+                                    newNet[idx].textLimitAdjusted = false;
+                                    newNet[idx].textLimitPlatform = '';
                                     setNetworks(newNet);
                                   }}
                                   onBlur={() => {
@@ -1212,6 +1263,8 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
                                   onChange={(e) => {
                                     const newNet = [...networks];
                                     newNet[idx].adaptedText = e.target.value;
+                                    newNet[idx].textLimitAdjusted = false;
+                                    newNet[idx].textLimitPlatform = '';
                                     setNetworks(newNet);
                                   }}
                                   onBlur={() => {

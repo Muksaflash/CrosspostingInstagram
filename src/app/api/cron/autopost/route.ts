@@ -323,10 +323,24 @@ export async function GET(req: Request) {
         for (const net of activeNetworks) {
           try {
             const adapted = await adaptText(post.caption, net.prompt, mainPrompt, openAiModel, openAiKey);
+            const limited = await ensurePublicationTextLimits({
+              network: {
+                name: net.name,
+                platform: net.platform,
+                pmpChannelId: net.pmpChannelId,
+              },
+              title: adapted.title,
+              content: adapted.text,
+              openAiKey,
+              model: openAiModel,
+              logContext: `${email} ${net.name || net.accountId} after adaptation`,
+            });
             adaptedNetworks.push({
               ...net,
-              adaptedTitle: adapted.title,
-              adaptedText: adapted.text
+              adaptedTitle: limited.title,
+              adaptedText: limited.content,
+              textLimitAdjusted: limited.shortened,
+              textLimitPlatform: limited.platformLabel || limited.platform || "",
             });
           } catch (e: any) {
             console.error(`Error adapting text for ${net.name} (${email}):`, e.message);
@@ -437,6 +451,10 @@ export async function GET(req: Request) {
             model: openAiModel,
             logContext: `${email} ${net.name || accountId}`,
           });
+          net.adaptedTitle = limitedText.title;
+          net.adaptedText = limitedText.content;
+          net.textLimitAdjusted = Boolean(net.textLimitAdjusted || limitedText.shortened);
+          net.textLimitPlatform = limitedText.platformLabel || limitedText.platform || net.textLimitPlatform || "";
           
           const detail: any = {
             account_id: accountId,
@@ -498,7 +516,9 @@ export async function GET(req: Request) {
                   .doc(net._docId);
                 batch.update(netRef, {
                   adaptedText: net.adaptedText || "",
-                  adaptedTitle: net.adaptedTitle || ""
+                  adaptedTitle: net.adaptedTitle || "",
+                  textLimitAdjusted: Boolean(net.textLimitAdjusted),
+                  textLimitPlatform: net.textLimitPlatform || "",
                 });
               }
             }

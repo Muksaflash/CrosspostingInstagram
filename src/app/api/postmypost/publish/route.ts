@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { getUserSettings } from "@/app/actions";
 import { uploadMediaUrlsToPostMyPost, createPublication, getPostMyPostAccounts } from "@/lib/postmypost";
 import { createCloudinarySlideshowUrl } from "@/lib/cloudinary";
-import { ensurePublicationTextLimits } from "@/lib/publishingText";
+import { getPublicationTextLimitViolation } from "@/lib/publishingText";
 import { firestore } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import type { DocumentReference } from "firebase-admin/firestore";
@@ -46,11 +46,13 @@ type AuthSession = {
 class PublishRouteError extends Error {
   code: string;
   status: number;
+  details?: Record<string, unknown>;
 
-  constructor(code: string, message: string, status = 500) {
+  constructor(code: string, message: string, status = 500, details?: Record<string, unknown>) {
     super(message);
     this.code = code;
     this.status = status;
+    this.details = details;
   }
 }
 
@@ -288,9 +290,40 @@ export async function POST(req: Request) {
 
     for (const candidate of claimed) {
       const net = candidate.net;
-      const pubSettings = net.publishingSettings || {};
       const pmpAccount = pmpAccountsById.get(candidate.accountId);
       const pmpChannelId = net.pmpChannelId ?? pmpAccount?.channel_id ?? pmpAccount?.chanel_id;
+      const violation = getPublicationTextLimitViolation({
+        network: {
+          name: net.name,
+          platform: net.platform,
+          pmpChannelId,
+        },
+        title: net.adaptedTitle || "",
+        content: net.adaptedText || originalCaption || "",
+      });
+
+      if (violation) {
+        throw new PublishRouteError(
+          "TEXT_LIMIT_EXCEEDED",
+          `Text for ${violation.platformLabel} exceeds platform limits: ${violation.summary}.`,
+          400,
+          {
+            platform: violation.platform,
+            platformLabel: violation.platformLabel,
+            contentLength: violation.overflow.contentLength,
+            contentMax: violation.overflow.contentMax,
+            titleLength: violation.overflow.titleLength,
+            titleMax: violation.overflow.titleMax,
+            summary: violation.summary,
+            networkName: net.name || candidate.accountId,
+          }
+        );
+      }
+    }
+
+    for (const candidate of claimed) {
+      const net = candidate.net;
+      const pubSettings = net.publishingSettings || {};
 
       const isSingleImage = !hasVideo && mediaUrls.length === 1;
       const isPhotoCarousel = !hasVideo && mediaUrls.length > 1;
@@ -358,27 +391,17 @@ export async function POST(req: Request) {
       accountIds.push(candidate.accountIdValue);
 
       const pubType = Number(pubSettings.publicationType || 1);
-      const limitedText = await ensurePublicationTextLimits({
-        network: {
-          name: net.name,
-          platform: net.platform,
-          pmpChannelId,
-        },
-        title: net.adaptedTitle || "",
-        content: net.adaptedText || originalCaption || "",
-        openAiKey: settings?.OPENAI_API_KEY,
-        model: settings?.OPENAI_MODEL || "gpt-5.2",
-        logContext: `${userDataKey} ${net.name || candidate.accountId}`,
-      });
+      const title = net.adaptedTitle || "";
+      const content = net.adaptedText || originalCaption || "";
       
       const detail: Record<string, unknown> = {
         account_id: candidate.accountIdValue,
         publication_type: pubType,
-        content: limitedText.content,
+        content,
         file_ids: currentFileIds
       };
 
-      if (limitedText.title) detail.title = limitedText.title;
+      if (title) detail.title = title;
       
       const effectivePinLink = pubSettings.pinterestLink || settings?.PINTEREST_LINK || '';
       if (effectivePinLink && (net.platform || net.name || '').toLowerCase().includes('pinterest')) {
@@ -442,6 +465,7 @@ export async function POST(req: Request) {
         {
           code: error.code,
           message: error.message,
+          details: error.details,
         },
         { status: error.status }
       );
