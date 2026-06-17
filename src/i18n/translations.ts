@@ -40,8 +40,10 @@ export const translations = {
           CLOUDINARY_REG_DATE: { label: "Cloudinary Registration Date (YYYY-MM-DD)", placeholder: "2025-12-22" }
         },
         models: {
-          "gpt-5.2": "gpt-5.2 (Recommended)",
-          "gpt-5.2-thinking": "gpt-5.2 thinking (Deep analysis)",
+          "gpt-5.4": "gpt-5.4 (Recommended)",
+          "gpt-5.4-thinking": "gpt-5.4 thinking (Balanced reasoning)",
+          "gpt-5.2": "gpt-5.2",
+          "gpt-5.2-thinking": "gpt-5.2 thinking (Balanced reasoning)",
           "gpt-5": "gpt-5 (Fast)",
           "gpt-5-mini": "gpt-5 mini (Cheap)",
           "gpt-5-nano": "gpt-5 nano (Cheapest)"
@@ -184,8 +186,10 @@ export const translations = {
           CLOUDINARY_REG_DATE: { label: "Cloudinary дата регистрации (ГГГГ-ММ-ДД)", placeholder: "2025-12-22" }
         },
         models: {
-          "gpt-5.2": "gpt-5.2 (Рекомендуется)",
-          "gpt-5.2-thinking": "gpt-5.2 thinking (Глубокий анализ)",
+          "gpt-5.4": "gpt-5.4 (Рекомендуется)",
+          "gpt-5.4-thinking": "gpt-5.4 thinking (Сбалансированное рассуждение)",
+          "gpt-5.2": "gpt-5.2",
+          "gpt-5.2-thinking": "gpt-5.2 thinking (Сбалансированное рассуждение)",
           "gpt-5": "gpt-5 (Быстрый)",
           "gpt-5-mini": "gpt-5 mini (Дешевый)",
           "gpt-5-nano": "gpt-5 nano (Самый дешевый)"

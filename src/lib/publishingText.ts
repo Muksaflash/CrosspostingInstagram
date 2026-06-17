@@ -93,7 +93,7 @@ export async function ensurePublicationTextLimits(
         platformLabel: limits.label,
         titleLimit: limitLabel(limits.titleMax, limits.titleUnit),
         contentLimit: limitLabel(limits.contentMax, limits.contentUnit),
-        model: input.model || "gpt-5.2",
+        model: input.model || "gpt-5.4",
         apiKey: input.openAiKey,
       });
       title = shortened.title || title;

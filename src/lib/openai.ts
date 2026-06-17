@@ -1,5 +1,15 @@
 
 const API_URL = 'https://api.openai.com/v1/chat/completions';
+const DEFAULT_MODEL = 'gpt-5.4';
+const THINKING_REASONING_EFFORT = 'medium';
+
+function resolveModelVariant(model?: string) {
+  const isThinking = (model || '').includes('-thinking');
+  return {
+    isThinking,
+    actualModel: isThinking ? (model || '').replace('-thinking', '') : model,
+  };
+}
 
 
 
@@ -29,23 +39,20 @@ export async function adaptText(baseText: string, prompt: string, mainPrompt: st
     { role: 'user', content: userContent }
   ];
 
-  // Handle "thinking" model variant
-  const isThinking = (model || '').includes('-thinking');
-  const actualModel = isThinking ? model.replace('-thinking', '') : model;
+  const { isThinking, actualModel } = resolveModelVariant(model);
 
   const payload: Record<string, any> = {
-    model: actualModel || 'gpt-5.2', // Default to GPT-5.2
+    model: actualModel || DEFAULT_MODEL,
     messages: messages,
     temperature: 1, 
     response_format: { type: "json_object" } // Force JSON mode
   };
 
-  // For "thinking" mode, add reasoning_effort for deeper analysis
   if (isThinking) {
-    payload.reasoning_effort = 'high';
+    payload.reasoning_effort = THINKING_REASONING_EFFORT;
   }
 
-  console.log(`[OpenAI Request] Adapt Text using model: ${payload.model}`, isThinking ? '(with reasoning_effort: high)' : '');
+  console.log(`[OpenAI Request] Adapt Text using model: ${payload.model}`, isThinking ? `(with reasoning_effort: ${THINKING_REASONING_EFFORT})` : '');
 
   const res = await fetch(API_URL, {
     method: 'POST',
@@ -91,10 +98,9 @@ export async function shortenContentToLimits(request: ShortenContentRequest): Pr
     `Current text:\n${request.text || ""}`,
   ].join("\n");
 
-  const isThinking = (request.model || '').includes('-thinking');
-  const actualModel = isThinking ? request.model.replace('-thinking', '') : request.model;
+  const { isThinking, actualModel } = resolveModelVariant(request.model);
   const payload: Record<string, any> = {
-    model: actualModel || 'gpt-5.2',
+    model: actualModel || DEFAULT_MODEL,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userContent },
@@ -104,10 +110,10 @@ export async function shortenContentToLimits(request: ShortenContentRequest): Pr
   };
 
   if (isThinking) {
-    payload.reasoning_effort = 'high';
+    payload.reasoning_effort = THINKING_REASONING_EFFORT;
   }
 
-  console.log(`[OpenAI Request] Shorten Text for ${request.platformLabel} using model: ${payload.model}`, isThinking ? '(with reasoning_effort: high)' : '');
+  console.log(`[OpenAI Request] Shorten Text for ${request.platformLabel} using model: ${payload.model}`, isThinking ? `(with reasoning_effort: ${THINKING_REASONING_EFFORT})` : '');
 
   const res = await fetch(API_URL, {
     method: 'POST',

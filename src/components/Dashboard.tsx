@@ -122,9 +122,9 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
   const [settingsTab, setSettingsTab] = useState<'general' | 'prompts'>('general');
 
   const [networks, setNetworks] = useState<SocialNetwork[]>(initialNetworks.length ? initialNetworks : [
-    { name: 'Telegram', enabled: true, model: 'gpt-5.2', prompt: 'Перепиши текст для Telegram канала...' },
-    { name: 'VK', enabled: true, model: 'gpt-5.2', prompt: 'Адаптируй для ВКонтакте...' },
-    { name: 'Instagram', enabled: false, model: 'gpt-5.2', prompt: '...' }, // Usually disable adapt for source
+    { name: 'Telegram', enabled: true, model: 'gpt-5.4', prompt: 'Перепиши текст для Telegram канала...' },
+    { name: 'VK', enabled: true, model: 'gpt-5.4', prompt: 'Адаптируй для ВКонтакте...' },
+    { name: 'Instagram', enabled: false, model: 'gpt-5.4', prompt: '...' }, // Usually disable adapt for source
   ]);
   
   const [post, setPost] = useState<InstagramPost | null>(initialPost || null);
@@ -152,7 +152,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
     CLOUDINARY_API_KEY: '',
     CLOUDINARY_API_SECRET: '',
     CLOUDINARY_REG_DATE: '',
-    OPENAI_MODEL: 'gpt-4o',
+    OPENAI_MODEL: 'gpt-5.4',
     MAIN_PROMPT: 'Ты маркетолог, который адаптирует тексты постов под разные соцсети. Если в посте есть ссылка на сайт курса то вставляй всегда эту...',
     CUSTOM_PROMPTS: '{}'
   });
@@ -208,7 +208,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
         CLOUDINARY_API_KEY: settings.CLOUDINARY_API_KEY || '',
         CLOUDINARY_API_SECRET: settings.CLOUDINARY_API_SECRET || '',
         CLOUDINARY_REG_DATE: settings.CLOUDINARY_REG_DATE || '',
-        OPENAI_MODEL: settings.OPENAI_MODEL || 'gpt-5.2',
+        OPENAI_MODEL: settings.OPENAI_MODEL || 'gpt-5.4',
         MAIN_PROMPT: settings.MAIN_PROMPT || 'Ты маркетолог, который адаптирует тексты постов под разные соцсети. Если в посте есть ссылка на сайт курса то вставляй всегда эту...',
         CUSTOM_PROMPTS: settings.CUSTOM_PROMPTS || '{}'
       });
@@ -360,7 +360,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
     const promises = newNetworks.map(async (net, i) => {
       if (net.enabled && net.prompt) {
         try {
-          const adapted = await adaptPostText(post.caption, net.prompt, apiKeys.MAIN_PROMPT, apiKeys.OPENAI_MODEL || 'gpt-5.2', {
+          const adapted = await adaptPostText(post.caption, net.prompt, apiKeys.MAIN_PROMPT, apiKeys.OPENAI_MODEL || 'gpt-5.4', {
             name: net.name,
             platform: net.platform,
             pmpChannelId: net.pmpChannelId,
@@ -593,7 +593,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
     const newNetwork: SocialNetwork = {
       name: account.name || account.platform,
       enabled: true,
-      model: apiKeys.OPENAI_MODEL || 'gpt-5.2',
+      model: apiKeys.OPENAI_MODEL || 'gpt-5.4',
       prompt: `Адаптируй этот пост для публикации в ${account.platform}...`,
       accountId: account.id,
       platform: account.platform,
@@ -640,7 +640,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
 
     try {
       const { adaptPostText } = await import("@/app/actions");
-      const adapted = await adaptPostText(post.caption, net.prompt, apiKeys.MAIN_PROMPT, apiKeys.OPENAI_MODEL || 'gpt-5.2', {
+      const adapted = await adaptPostText(post.caption, net.prompt, apiKeys.MAIN_PROMPT, apiKeys.OPENAI_MODEL || 'gpt-5.4', {
         name: net.name,
         platform: net.platform,
         pmpChannelId: net.pmpChannelId,

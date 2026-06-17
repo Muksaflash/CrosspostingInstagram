@@ -199,7 +199,7 @@ export async function GET(req: Request) {
       const postMyPostToken = settings["POSTMYPOST_TOKEN"];
       const ppmProjectId = Number(settings["POSTMYPOST_PROJECT_ID"]);
       const openAiKey = settings["OPENAI_API_KEY"];
-      const openAiModel = settings["OPENAI_MODEL"] || "gpt-5.2";
+      const openAiModel = settings["OPENAI_MODEL"] || "gpt-5.4";
       const mainPrompt = settings["MAIN_PROMPT"] || "";
 
       if (!instagramUrl || !rapidApiKey || !postMyPostToken || !ppmProjectId || !openAiKey) {
