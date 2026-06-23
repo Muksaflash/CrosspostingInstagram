@@ -95,6 +95,109 @@ function summarizeSettingValue(key: string, value: unknown) {
   };
 }
 
+function stringifyAuditValue(value: unknown): string {
+  if (value === undefined || value === null) return "";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function summarizeAuditValue(key: string, value: unknown) {
+  const raw = stringifyAuditValue(value);
+  const sensitive = /(KEY|TOKEN|SECRET)/i.test(key);
+  const tooLong = raw.length > 500;
+
+  return {
+    present: raw.length > 0,
+    type: Array.isArray(value) ? "array" : typeof value,
+    length: raw.length,
+    redacted: sensitive,
+    truncated: !sensitive && tooLong,
+    value: sensitive ? "" : raw.slice(0, 500),
+  };
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stableStringify(value: unknown): string {
+  if (value === undefined) return "__undefined__";
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return JSON.stringify(value.map((item) => stableStringify(item)));
+
+  const obj = value as Record<string, unknown>;
+  return JSON.stringify(
+    Object.keys(obj)
+      .sort()
+      .reduce<Record<string, unknown>>((acc, key) => {
+        acc[key] = stableStringify(obj[key]);
+        return acc;
+      }, {})
+  );
+}
+
+function flattenAuditFields(
+  prefix: string,
+  value: unknown,
+  output: Record<string, unknown>
+) {
+  if (isPlainObject(value)) {
+    for (const [key, nestedValue] of Object.entries(value)) {
+      flattenAuditFields(`${prefix}.${key}`, nestedValue, output);
+    }
+    return;
+  }
+
+  output[prefix] = value;
+}
+
+function flattenSocialNetworkAuditData(data: Record<string, unknown>) {
+  const fields = [
+    "name",
+    "enabled",
+    "model",
+    "prompt",
+    "accountId",
+    "platform",
+    "pmpChannelId",
+    "adaptedText",
+    "adaptedTitle",
+    "textLimitAdjusted",
+    "textLimitPlatform",
+    "publishingSettings",
+  ];
+  const flattened: Record<string, unknown> = {};
+
+  for (const field of fields) {
+    if (Object.prototype.hasOwnProperty.call(data, field)) {
+      flattenAuditFields(field, data[field], flattened);
+    }
+  }
+
+  return flattened;
+}
+
+function buildSocialNetworkAuditDiff(
+  previous: Record<string, unknown>,
+  next: Record<string, unknown>
+) {
+  const previousFlat = flattenSocialNetworkAuditData(previous);
+  const nextFlat = flattenSocialNetworkAuditData(next);
+  const keys = Array.from(new Set([...Object.keys(previousFlat), ...Object.keys(nextFlat)])).sort();
+  const changedFields = keys.filter((key) => stableStringify(previousFlat[key]) !== stableStringify(nextFlat[key]));
+  const changes = changedFields.map((field) => ({
+    field,
+    previousValue: summarizeAuditValue(field, previousFlat[field]),
+    newValue: summarizeAuditValue(field, nextFlat[field]),
+  }));
+
+  return { changedFields, changes };
+}
+
 async function getActorAuditData() {
   const session = await auth();
   const meta = await getRequestAuditMetadata();
@@ -295,12 +398,43 @@ export async function saveSocialNetwork(
   const safeDocId = String(docId);
 
   try {
-    await firestore
+    const networkRef = firestore
       .collection("users")
       .doc(userDataKey)
       .collection("socialNetworks")
-      .doc(safeDocId)
-      .set(data, { merge: true });
+      .doc(safeDocId);
+
+    const previousDoc = await networkRef.get();
+    const previousData = previousDoc.exists ? (previousDoc.data() || {}) : {};
+    const nextData = { ...previousData, ...data };
+    const { changedFields, changes } = buildSocialNetworkAuditDiff(previousData, nextData);
+
+    const batch = firestore.batch();
+    batch.set(networkRef, data, { merge: true });
+
+    if (changedFields.length > 0) {
+      const auditData = await getActorAuditData();
+      const auditRef = firestore
+        .collection("users")
+        .doc(userDataKey)
+        .collection("socialNetworkAudit")
+        .doc();
+
+      batch.set(auditRef, {
+        action: previousDoc.exists ? "save_social_network" : "create_social_network",
+        networkDocId: safeDocId,
+        networkName: stringifyAuditValue(nextData.name || safeDocId),
+        accountId: stringifyAuditValue(nextData.accountId || ""),
+        platform: stringifyAuditValue(nextData.platform || ""),
+        changedFields,
+        changes,
+        changedAt: FieldValue.serverTimestamp(),
+        changedAtMs: Date.now(),
+        ...auditData,
+      });
+    }
+
+    await batch.commit();
 
     revalidatePath("/");
   } catch (e) {

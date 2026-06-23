@@ -29,7 +29,12 @@ export interface ShortenContentRequest {
 }
 
 export async function adaptText(baseText: string, prompt: string, mainPrompt: string, model: string, apiKey: string): Promise<AdaptedContent> {
-  const systemPrompt = `Всегда отвечай СТРОГО одним JSON-объектом вида {"title": "...", "text": "..."}, без каких-либо комментариев, префиксов, суффиксов и форматирования.`;
+  const systemPrompt = [
+    'Always return exactly one JSON object shaped as {"title":"...","text":"..."}. No markdown, comments, prefixes, suffixes, or formatting outside JSON.',
+    'The "title" field is not an internal label. If the target social network/account uses a title field, this title can be published visibly in that social network, including Shorts/Reels-style surfaces.',
+    'Write a meaningful, user-facing title in the same language as the post. Never use generic placeholders like "Post for social network", "Adapted post", "Post text", or similar service labels.',
+    'If a title is not useful for the target platform, return an empty title string rather than a generic label.'
+  ].join('\n');
   
   const combinedPrompt = mainPrompt ? `${mainPrompt}\n\n${prompt}` : prompt;
   const userContent = `Задача:\n${combinedPrompt}\n\nИсходный текст поста:\n"""${baseText}"""`;
