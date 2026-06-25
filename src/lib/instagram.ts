@@ -1,9 +1,8 @@
-import https from 'https';
-
 const RAPIDAPI_HOST = 'instagram120.p.rapidapi.com';
 const API_ENDPOINT = 'https://instagram120.p.rapidapi.com/api/instagram/links';
-const API_MEDIA_BY_SHORTCODE_ENDPOINT = '/api/instagram/mediaByShortcode';
+const API_MEDIA_BY_SHORTCODE_ENDPOINT = `https://${RAPIDAPI_HOST}/api/instagram/mediaByShortcode`;
 const RAPIDAPI_RETRY_DELAYS_MS = [1500, 4000];
+const VIDEO_EXTENSIONS = ['mp4', 'mov', 'avi', 'webm'];
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -114,6 +113,146 @@ export interface InstagramQuota {
   resetSeconds: number;
 }
 
+type InstagramProcessOptions = {
+  rapidApiKey?: string;
+  allowShortcodeFallback?: boolean;
+};
+
+type InstagramMediaCandidate = {
+  url: string;
+  extension: string;
+  score: number;
+};
+
+type InstagramApiMeta = {
+  shortcode?: string | null;
+  id?: string | number | null;
+  username?: string | null;
+  sourceUrl?: string | null;
+  title?: string | null;
+  takenAt?: number | string | null;
+};
+
+type InstagramApiUrl = {
+  url?: string | null;
+  extension?: string | null;
+};
+
+type InstagramApiItem = {
+  meta?: InstagramApiMeta | null;
+  urls?: InstagramApiUrl[] | null;
+  pictureUrl?: string | null;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isInstagramApiItem(value: unknown): value is InstagramApiItem {
+  return isRecord(value);
+}
+
+function getQuotaFromHeaders(headers: Headers): InstagramQuota {
+  const remaining = headers.get('x-ratelimit-requests-remaining') || '0';
+  const limit = headers.get('x-ratelimit-requests-limit') || '0';
+  const resetSeconds = headers.get('x-ratelimit-requests-reset') || '0';
+
+  return {
+    limit: parseInt(limit, 10),
+    remaining: parseInt(remaining, 10),
+    resetSeconds: parseInt(resetSeconds, 10)
+  };
+}
+
+function normalizeInstagramDataArray(data: unknown): InstagramApiItem[] {
+  const rawItems = Array.isArray(data) ? data : (data ? [data] : []);
+  return rawItems.filter(isInstagramApiItem);
+}
+
+function getUrlExtension(url: string): string {
+  const withoutQuery = url.split('?')[0] || '';
+  const match = withoutQuery.match(/\.([a-z0-9]+)$/i);
+  return match?.[1]?.toLowerCase() || '';
+}
+
+function isVideoExtension(extension: string): boolean {
+  return VIDEO_EXTENSIONS.includes(extension.toLowerCase());
+}
+
+function isVideoCandidate(url: string, extension: string): boolean {
+  const lower = url.toLowerCase();
+  return isVideoExtension(extension) || lower.includes('.mp4') || lower.includes('/video');
+}
+
+export function isLikelyInstagramVideoOnlyUrl(url: string): boolean {
+  const lower = url.toLowerCase();
+  return (
+    lower.includes('strext=1') ||
+    lower.includes('video_dash') ||
+    lower.includes('videodash') ||
+    lower.includes('dashinit') ||
+    lower.includes('dash_baseline') ||
+    lower.includes('dash_') ||
+    lower.includes('_dash')
+  );
+}
+
+function scoreMediaCandidate(url: string, extension: string): number {
+  let score = 0;
+  const lower = url.toLowerCase();
+
+  if (isVideoCandidate(url, extension)) score += 20;
+  if (extension === 'mp4') score += 10;
+  if (lower.includes('dl=1')) score += 2;
+  if (isLikelyInstagramVideoOnlyUrl(url)) score -= 100;
+
+  return score;
+}
+
+function getMediaCandidates(item: InstagramApiItem): InstagramMediaCandidate[] {
+  const urls = Array.isArray(item?.urls) ? item.urls : [];
+
+  return urls
+    .map((entry: InstagramApiUrl) => {
+      const url = typeof entry?.url === 'string' ? entry.url : '';
+      if (!url) return null;
+      const extension = String(entry?.extension || getUrlExtension(url)).toLowerCase();
+      return {
+        url,
+        extension,
+        score: scoreMediaCandidate(url, extension),
+      };
+    })
+    .filter(Boolean) as InstagramMediaCandidate[];
+}
+
+function selectBestMediaUrl(item: InstagramApiItem): string {
+  const candidates = getMediaCandidates(item);
+  if (!candidates.length) return '';
+
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0].url;
+}
+
+async function fetchMediaByShortcode(shortcode: string, rapidApiKey: string): Promise<{ data: unknown; quota: InstagramQuota }> {
+  const res = await fetch(API_MEDIA_BY_SHORTCODE_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-rapidapi-host': RAPIDAPI_HOST,
+      'x-rapidapi-key': rapidApiKey,
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    },
+    body: JSON.stringify({ shortcode }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`RapidAPI Error: ${res.status} ${await res.text()}`);
+  }
+
+  return { data: await res.json(), quota: getQuotaFromHeaders(res.headers) };
+}
+
 export async function getLatestInstagramPost(usernameUrl: string, rapidApiKey: string): Promise<{ post: InstagramPost, quota: InstagramQuota }> {
   return withInstagramRetry('latest post fetch', async () => {
     const res = await fetch(API_ENDPOINT, {
@@ -131,28 +270,26 @@ export async function getLatestInstagramPost(usernameUrl: string, rapidApiKey: s
       throw new Error(`RapidAPI Error: ${res.status} ${await res.text()}`);
     }
 
-    const data = await res.json();
-    if (!Array.isArray(data) || data.length === 0) {
+    const data = normalizeInstagramDataArray(await res.json());
+    if (!data.length) {
       throw new Error('Empty response from Instagram API');
     }
 
     // Find latest by takenAt
-    const latestItem = data.reduce((best: any, item: any) => {
-      if (!item?.meta?.takenAt) return best;
+    const latestItem = data.reduce<InstagramApiItem | null>((best, item) => {
+      const takenAt = Number(item?.meta?.takenAt || 0);
+      if (!takenAt) return best;
       if (!best) return item;
-      return item.meta.takenAt > best.meta.takenAt ? item : best;
+      return takenAt > Number(best.meta?.takenAt || 0) ? item : best;
     }, null) || data[0];
 
-    const remaining = res.headers.get('x-ratelimit-requests-remaining') || '0';
-    const limit = res.headers.get('x-ratelimit-requests-limit') || '0';
-    const resetSeconds = res.headers.get('x-ratelimit-requests-reset') || '0';
-    const quota = {
-      limit: parseInt(limit, 10),
-      remaining: parseInt(remaining, 10),
-      resetSeconds: parseInt(resetSeconds, 10)
+    return {
+      post: await processInstagramItem(latestItem, data, {
+        rapidApiKey,
+        allowShortcodeFallback: true,
+      }),
+      quota: getQuotaFromHeaders(res.headers),
     };
-
-    return { post: processInstagramItem(latestItem, data), quota };
   });
 }
 
@@ -173,132 +310,71 @@ export async function getRecentInstagramPosts(usernameUrl: string, rapidApiKey: 
       throw new Error(`RapidAPI Error: ${res.status} ${await res.text()}`);
     }
 
-    const data = await res.json();
-    if (!Array.isArray(data) || data.length === 0) {
+    const data = normalizeInstagramDataArray(await res.json());
+    if (!data.length) {
       throw new Error('Empty response from Instagram API');
     }
 
     // The endpoint returns a flat array of media items. Group them by shortcode/id to form distinct posts.
-    const postsMap = new Map<string, any[]>();
+    const postsMap = new Map<string, InstagramApiItem[]>();
 
     for (const item of data) {
       const sc = item?.meta?.shortcode || item?.meta?.id;
       if (!sc) continue;
-      if (!postsMap.has(sc)) postsMap.set(sc, []);
-      postsMap.get(sc)!.push(item);
+      const key = String(sc);
+      if (!postsMap.has(key)) postsMap.set(key, []);
+      postsMap.get(key)!.push(item);
     }
 
     const recentPosts: InstagramPost[] = [];
 
-    for (const [sc, items] of postsMap.entries()) {
+    for (const [, items] of postsMap.entries()) {
       // We treat the first item in the group as the main metadata source
       const mainItem = items[0];
       if (mainItem) {
-        recentPosts.push(processInstagramItem(mainItem, data));
+        recentPosts.push(await processInstagramItem(mainItem, data, {
+          rapidApiKey,
+          allowShortcodeFallback: true,
+        }));
       }
     }
 
     // Sort them by takenAt descending (newest first)
     recentPosts.sort((a, b) => b.takenAt - a.takenAt);
 
-    const remaining = res.headers.get('x-ratelimit-requests-remaining') || '0';
-    const limit = res.headers.get('x-ratelimit-requests-limit') || '0';
-    const resetSeconds = res.headers.get('x-ratelimit-requests-reset') || '0';
-    const quota = {
-      limit: parseInt(limit, 10),
-      remaining: parseInt(remaining, 10),
-      resetSeconds: parseInt(resetSeconds, 10)
-    };
-
-    return { posts: recentPosts, quota };
+    return { posts: recentPosts, quota: getQuotaFromHeaders(res.headers) };
   });
 }
 
 export async function getInstagramPostByShortcode(shortcode: string, rapidApiKey: string): Promise<{ post: InstagramPost, quota: InstagramQuota }> {
-  return withInstagramRetry('post by shortcode fetch', () => new Promise((resolve, reject) => {
-    const postData = JSON.stringify({ shortcode });
-    const options = {
-      method: 'POST',
-      hostname: RAPIDAPI_HOST,
-      port: null,
-      path: API_MEDIA_BY_SHORTCODE_ENDPOINT,
-      headers: {
-        'x-rapidapi-key': rapidApiKey,
-        'x-rapidapi-host': RAPIDAPI_HOST,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData)
-      }
+  return withInstagramRetry('post by shortcode fetch', async () => {
+    const { data, quota } = await fetchMediaByShortcode(shortcode, rapidApiKey);
+    const dataArray = normalizeInstagramDataArray(data);
+    if (!dataArray.length) {
+      throw new Error('Empty response from Instagram API');
+    }
+
+    return {
+      post: await processInstagramItem(dataArray[0], dataArray, {
+        rapidApiKey,
+        allowShortcodeFallback: false,
+      }),
+      quota,
     };
-
-    const req = https.request(options, function (res) {
-      const chunks: any[] = [];
-
-      res.on('data', function (chunk) {
-        chunks.push(chunk);
-      });
-
-      res.on('end', function () {
-        if (res.statusCode && res.statusCode >= 400) {
-          return reject(new Error(`RapidAPI Error: ${res.statusCode} ${Buffer.concat(chunks).toString()}`));
-        }
-
-        const body = Buffer.concat(chunks).toString();
-        try {
-          const data = JSON.parse(body);
-          if (!data) return reject(new Error('Empty response from Instagram API'));
-
-          // mediaByShortcode returns a single object directly sometimes, not an array.
-          // Or if it IS an array, process first element. In the user's snippet, it returned an object for the first file, or array of them depending.
-          const isArray = Array.isArray(data);
-          if (isArray && data.length === 0) {
-            return reject(new Error('Empty array response from Instagram API'));
-          }
-
-          // In the user's dumped log, the data was parsed as a single object if it's `{...}`, 
-          // but if it's an array of objects `[{meta: ...}, {urls: ...}]`, we wrap it logically.
-          // The snippet dumped by the user showed JSON starting with `{` then missing keys or array?
-          // Wait, the user's snippet dumped an array of objects! `[{"meta":...}, {"urls":...}]` or similar judging from structure.
-
-          // Actually, let's just use `processInstagramItem(firstItem, dataAsArray)`
-          const dataArray = isArray ? data : [data];
-          const firstItem = dataArray[0];
-
-          const getHeader = (name: string) => Array.isArray(res.headers[name]) ? res.headers[name]?.[0] : res.headers[name];
-          const remaining = getHeader('x-ratelimit-requests-remaining') || '0';
-          const limit = getHeader('x-ratelimit-requests-limit') || '0';
-          const resetSeconds = getHeader('x-ratelimit-requests-reset') || '0';
-          const quota = {
-            limit: parseInt(limit as string, 10),
-            remaining: parseInt(remaining as string, 10),
-            resetSeconds: parseInt(resetSeconds as string, 10)
-          };
-
-          resolve({ post: processInstagramItem(firstItem, dataArray), quota });
-        } catch (e: any) {
-          reject(new Error(`JSON Parse Error: ${e.message} | Body: ${body.slice(0, 100)}`));
-        }
-      });
-    });
-
-    req.on('error', (e) => {
-      reject(e);
-    });
-
-    req.write(postData);
-    req.end();
-  }));
+  });
 }
 
-function processInstagramItem(item: any, allItems: any[]): InstagramPost {
+function buildInstagramPost(item: InstagramApiItem, allItems: InstagramApiItem[]): InstagramPost {
   const meta = item.meta || {};
-  const shortcode = meta.shortcode; // might be null if not found
-  const username = meta.username || '';
-  const postUrl = meta.sourceUrl || (shortcode ? `https://www.instagram.com/p/${shortcode}/` : '');
+  const shortcode = typeof meta.shortcode === 'string' ? meta.shortcode : ''; // might be empty if not found
+  const username = typeof meta.username === 'string' ? meta.username : '';
+  const postUrl = typeof meta.sourceUrl === 'string'
+    ? meta.sourceUrl
+    : (shortcode ? `https://www.instagram.com/p/${shortcode}/` : '');
 
   // Filter items matching this shortcode (if logical)
   // In `getLatest`, response contains many posts. valid logic:
-  const samePostItems = shortcode 
+  const samePostItems = shortcode
     ? allItems.filter(i => i.meta && i.meta.shortcode === shortcode)
     : [item];
 
@@ -306,8 +382,8 @@ function processInstagramItem(item: any, allItems: any[]): InstagramPost {
   const type = determinePostType(samePostItems);
   
   const imageUrl = item.pictureUrl || item.urls?.[0]?.url || '';
-  const caption = meta.title || '';
-  const takenAt = meta.takenAt || 0;
+  const caption = typeof meta.title === 'string' ? meta.title : '';
+  const takenAt = Number(meta.takenAt || 0);
   
   const postKey = (meta.id && String(meta.id)) || 
     (shortcode && String(shortcode)) || 
@@ -324,6 +400,46 @@ function processInstagramItem(item: any, allItems: any[]): InstagramPost {
     postUrl,
     takenAt
   };
+}
+
+async function processInstagramItem(
+  item: InstagramApiItem,
+  allItems: InstagramApiItem[],
+  options: InstagramProcessOptions = {}
+): Promise<InstagramPost> {
+  const post = buildInstagramPost(item, allItems);
+  const hasUnsafeVideoUrl = post.mediaUrls.some(isLikelyInstagramVideoOnlyUrl);
+
+  if (!hasUnsafeVideoUrl) return post;
+
+  if (!post.shortcode || !options.rapidApiKey || options.allowShortcodeFallback === false) {
+    console.warn(`[Instagram] Refusing video-only media URL for ${post.shortcode || post.postKey}; audio-safe media was not resolved.`);
+    throw new Error('Instagram returned a video-only media URL without audio-safe fallback.');
+  }
+
+  try {
+    const fallbackData = await fetchMediaByShortcode(post.shortcode, options.rapidApiKey);
+    const fallbackArray = normalizeInstagramDataArray(fallbackData.data);
+    if (!fallbackArray.length) {
+      throw new Error('Empty shortcode fallback response');
+    }
+
+    const fallbackPost = buildInstagramPost(fallbackArray[0], fallbackArray);
+    const fallbackHasUnsafeVideoUrl = fallbackPost.mediaUrls.some(isLikelyInstagramVideoOnlyUrl);
+    if (fallbackPost.mediaUrls.length && !fallbackHasUnsafeVideoUrl) {
+      console.log(`[Instagram] Replaced video-only media URL for ${post.shortcode} with shortcode media URL.`);
+      return {
+        ...post,
+        mediaUrls: fallbackPost.mediaUrls,
+        imageUrl: fallbackPost.imageUrl || post.imageUrl,
+        type: fallbackPost.type || post.type,
+      };
+    }
+  } catch (error) {
+    console.error(`[Instagram] Failed to resolve audio-safe media for ${post.shortcode}:`, getErrorMessage(error));
+  }
+
+  throw new Error(`Instagram returned video-only media for ${post.shortcode}; skipped to avoid publishing without sound.`);
 }
 
 async function tryFetchUrl(url: string): Promise<boolean> {
@@ -361,36 +477,23 @@ export async function getBestVideoUrl(originalUrl: string): Promise<string> {
   return originalUrl;
 }
 
-function extractMediaUrls(items: any[]): string[] {
-  const fs = require('fs');
-  const path = require('path');
-  const logPath = path.join(process.cwd(), 'instagram-debug.log');
-  let debugLog = `[${new Date().toISOString()}] extractMediaUrls called with ${items.length} items\n\n`;
-
-  const result = items
+function extractMediaUrls(items: InstagramApiItem[]): string[] {
+  return items
     .map((item) => {
-      const urls = item.urls;
-      if (!urls || !urls.length) return null;
-      const selectedUrl = urls[0]?.url;
-      debugLog += `Selected url = ${selectedUrl?.substring(0, 150)}\n\n`;
-      return selectedUrl;
+      const selectedUrl = selectBestMediaUrl(item);
+      return selectedUrl || null;
     })
-    .filter(Boolean);
-
-  try {
-    fs.writeFileSync(logPath, debugLog, 'utf-8');
-  } catch (e) { }
-
-  return result;
+    .filter((url): url is string => Boolean(url));
 }
 
-function determinePostType(items: any[]): string {
+function determinePostType(items: InstagramApiItem[]): string {
   let videoCount = 0;
   let imageCount = 0;
 
   items.forEach(item => {
-    const ext = item.urls?.[0]?.extension?.toLowerCase();
-    if (['mp4', 'mov', 'avi'].includes(ext)) {
+    const selectedUrl = selectBestMediaUrl(item);
+    const ext = String(item.urls?.[0]?.extension || getUrlExtension(selectedUrl)).toLowerCase();
+    if (isVideoExtension(ext) || selectedUrl.toLowerCase().includes('.mp4')) {
       videoCount++;
     } else {
       imageCount++;
