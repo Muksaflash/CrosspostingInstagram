@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { firestore } from "@/lib/firebase-admin";
 import { safeCompare } from "@/lib/security";
-import { getRecentInstagramPosts, type InstagramPost } from "@/lib/instagram";
+import { getRecentInstagramPosts, resolveInstagramAudioSafeMediaUrls, type InstagramPost } from "@/lib/instagram";
 import { type SocialNetwork } from "@/lib/types";
 import { adaptText } from "@/lib/openai";
 import { uploadMediaUrlsToPostMyPost, createPublication, getPostMyPostAccounts } from "@/lib/postmypost";
@@ -316,7 +316,20 @@ export async function GET(req: Request) {
 
       for (const post of eligiblePosts) {
         console.log(`Auto-posting postKey ${post.postKey} for user ${email}`);
-        totalPublished++;
+        let mediaUrls = post.mediaUrls;
+
+        try {
+          mediaUrls = await resolveInstagramAudioSafeMediaUrls({
+            mediaUrls,
+            rapidApiKey,
+            postKey: post.shortcode || post.postKey,
+            postUrl: post.postUrl,
+          });
+        } catch (mediaErr: unknown) {
+          const message = mediaErr instanceof Error ? mediaErr.message : String(mediaErr);
+          console.error(`Skipping auto-post ${post.postKey} for ${email}: ${message}`);
+          continue;
+        }
         
         // --- 1. Adapt text for each active network --- //
         const adaptedNetworks = [];
@@ -348,9 +361,9 @@ export async function GET(req: Request) {
         }
 
         if (adaptedNetworks.length === 0) continue;
+        totalPublished++;
 
         // --- 2. Publish to PostMyPost logic (similar to route.ts) --- //
-        const mediaUrls = post.mediaUrls;
         const hasVideo = mediaUrls.some((u: string) => /\.(mp4|mov|avi|webm)(?:\?|$)/i.test(u));
         const hasImage = mediaUrls.some((u: string) => !/\.(mp4|mov|avi|webm)(?:\?|$)/i.test(u));
         const isSingleVideo = mediaUrls.length === 1 && hasVideo;

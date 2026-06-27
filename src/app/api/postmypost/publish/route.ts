@@ -4,7 +4,7 @@ import { getUserSettings } from "@/app/actions";
 import { uploadMediaUrlsToPostMyPost, createPublication, getPostMyPostAccounts } from "@/lib/postmypost";
 import { createCloudinarySlideshowUrl } from "@/lib/cloudinary";
 import { getPublicationTextLimitViolation } from "@/lib/publishingText";
-import { getInstagramPostByShortcode, isLikelyInstagramVideoOnlyUrl } from "@/lib/instagram";
+import { resolveInstagramAudioSafeMediaUrls } from "@/lib/instagram";
 import { firestore } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import type { DocumentReference } from "firebase-admin/firestore";
@@ -71,48 +71,27 @@ function normalizePostIdentity(postKey: unknown, postUrl: unknown, mediaUrls: st
   return `media:${sha256(JSON.stringify(mediaUrls || []))}`;
 }
 
-function getInstagramShortcode(postKey: unknown, postUrl: unknown): string {
-  const key = typeof postKey === "string" ? postKey.trim() : "";
-  if (key && !key.startsWith("takenAt_") && /^[A-Za-z0-9_-]+$/.test(key)) return key;
-
-  const url = typeof postUrl === "string" ? postUrl : "";
-  const match = url.match(/instagram\.com\/(?:reel|p|tv)\/([A-Za-z0-9_-]+)/i);
-  return match?.[1] || "";
-}
-
 async function resolveAudioSafeMediaUrls(
   mediaUrls: string[],
   settings: Record<string, string> | undefined,
   postKey: unknown,
   postUrl: unknown
 ): Promise<string[]> {
-  if (!mediaUrls.some(isLikelyInstagramVideoOnlyUrl)) return mediaUrls;
-
-  const rapidApiKey = settings?.RAPIDAPI_KEY;
-  const shortcode = getInstagramShortcode(postKey, postUrl);
-  if (!rapidApiKey || !shortcode) {
+  try {
+    return await resolveInstagramAudioSafeMediaUrls({
+      mediaUrls,
+      rapidApiKey: settings?.RAPIDAPI_KEY,
+      postKey,
+      postUrl,
+    });
+  } catch (error) {
+    console.error("Failed to resolve audio-safe Instagram media before publish:", error);
     throw new PublishRouteError(
       "INSTAGRAM_VIDEO_AUDIO_UNSAFE",
       "Instagram returned a video-only media file. Please fetch the post again or try later.",
       400
     );
   }
-
-  try {
-    const refreshed = await getInstagramPostByShortcode(shortcode, rapidApiKey);
-    if (refreshed.post.mediaUrls.length && !refreshed.post.mediaUrls.some(isLikelyInstagramVideoOnlyUrl)) {
-      console.log(`Replaced video-only Instagram media URL for ${shortcode} before PMP upload.`);
-      return refreshed.post.mediaUrls;
-    }
-  } catch (error) {
-    console.error(`Failed to refresh Instagram media before publish (${shortcode}):`, error);
-  }
-
-  throw new PublishRouteError(
-    "INSTAGRAM_VIDEO_AUDIO_UNSAFE",
-    "Instagram returned a video-only media file. Please fetch the post again or try later.",
-    400
-  );
 }
 
 async function getSessionUserDataKey(session: AuthSession): Promise<string | null> {

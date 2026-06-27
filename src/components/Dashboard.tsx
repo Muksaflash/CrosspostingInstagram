@@ -534,7 +534,7 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
         throw new Error(getPublishErrorMessage(await readPublishError(res)));
       }
 
-      let responseBody: { skippedDuplicates?: unknown[]; publishedAccounts?: unknown[] } | null = null;
+      let responseBody: { status?: string; skippedDuplicates?: unknown[]; publishedAccounts?: unknown[] } | null = null;
       try {
         responseBody = await res.json();
       } catch {}
@@ -544,7 +544,9 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
         if (idx !== -1) newNetworks[idx].status = 'success';
       });
       const skippedCount = responseBody?.skippedDuplicates?.length || 0;
-      const publishedCount = responseBody?.publishedAccounts?.length ?? enabledNetworks.length;
+      const publishedCount = Array.isArray(responseBody?.publishedAccounts)
+        ? responseBody.publishedAccounts.length
+        : (responseBody?.status === 'skipped' ? 0 : enabledNetworks.length);
       if (skippedCount) {
         if (!publishedCount) {
           alert('Already published. Duplicate publication skipped.');
@@ -695,6 +697,22 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
 
       if (!res.ok) {
         throw new Error(getPublishErrorMessage(await readPublishError(res)));
+      }
+
+      let responseBody: { status?: string; skippedDuplicates?: unknown[]; publishedAccounts?: unknown[] } | null = null;
+      try {
+        responseBody = await res.json();
+      } catch {}
+
+      const skippedCount = responseBody?.skippedDuplicates?.length || 0;
+      const publishedCount = Array.isArray(responseBody?.publishedAccounts)
+        ? responseBody.publishedAccounts.length
+        : (responseBody?.status === 'skipped' ? 0 : 1);
+      if (skippedCount && !publishedCount) {
+        newNetworks[index].status = 'success';
+        alert('Already published. Duplicate publication skipped.');
+        setNetworks([...newNetworks]);
+        return;
       }
 
       newNetworks[index].status = 'success';

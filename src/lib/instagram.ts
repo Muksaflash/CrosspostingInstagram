@@ -118,6 +118,13 @@ type InstagramProcessOptions = {
   allowShortcodeFallback?: boolean;
 };
 
+type ResolveAudioSafeMediaParams = {
+  mediaUrls: string[];
+  rapidApiKey?: string;
+  postKey?: unknown;
+  postUrl?: unknown;
+};
+
 type InstagramMediaCandidate = {
   url: string;
   extension: string;
@@ -195,6 +202,15 @@ export function isLikelyInstagramVideoOnlyUrl(url: string): boolean {
     lower.includes('dash_') ||
     lower.includes('_dash')
   );
+}
+
+export function getInstagramShortcodeFromIdentity(postKey: unknown, postUrl: unknown): string {
+  const key = typeof postKey === 'string' ? postKey.trim() : '';
+  if (key && !key.startsWith('takenAt_') && /^[A-Za-z0-9_-]+$/.test(key)) return key;
+
+  const url = typeof postUrl === 'string' ? postUrl : '';
+  const match = url.match(/instagram\.com\/(?:reel|p|tv)\/([A-Za-z0-9_-]+)/i);
+  return match?.[1] || '';
 }
 
 function scoreMediaCandidate(url: string, extension: string): number {
@@ -364,6 +380,28 @@ export async function getInstagramPostByShortcode(shortcode: string, rapidApiKey
   });
 }
 
+export async function resolveInstagramAudioSafeMediaUrls({
+  mediaUrls,
+  rapidApiKey,
+  postKey,
+  postUrl,
+}: ResolveAudioSafeMediaParams): Promise<string[]> {
+  if (!mediaUrls.some(isLikelyInstagramVideoOnlyUrl)) return mediaUrls;
+
+  const shortcode = getInstagramShortcodeFromIdentity(postKey, postUrl);
+  if (!rapidApiKey || !shortcode) {
+    throw new Error('Instagram returned a video-only media file. Please fetch the post again or try later.');
+  }
+
+  const refreshed = await getInstagramPostByShortcode(shortcode, rapidApiKey);
+  if (refreshed.post.mediaUrls.length && !refreshed.post.mediaUrls.some(isLikelyInstagramVideoOnlyUrl)) {
+    console.log(`[Instagram] Replaced video-only media URL for ${shortcode} before publication.`);
+    return refreshed.post.mediaUrls;
+  }
+
+  throw new Error('Instagram returned a video-only media file. Please fetch the post again or try later.');
+}
+
 function buildInstagramPost(item: InstagramApiItem, allItems: InstagramApiItem[]): InstagramPost {
   const meta = item.meta || {};
   const shortcode = typeof meta.shortcode === 'string' ? meta.shortcode : ''; // might be empty if not found
@@ -412,34 +450,32 @@ async function processInstagramItem(
 
   if (!hasUnsafeVideoUrl) return post;
 
-  if (!post.shortcode || !options.rapidApiKey || options.allowShortcodeFallback === false) {
-    console.warn(`[Instagram] Refusing video-only media URL for ${post.shortcode || post.postKey}; audio-safe media was not resolved.`);
-    throw new Error('Instagram returned a video-only media URL without audio-safe fallback.');
+  if (post.shortcode && options.rapidApiKey && options.allowShortcodeFallback !== false) {
+    try {
+      const fallbackData = await fetchMediaByShortcode(post.shortcode, options.rapidApiKey);
+      const fallbackArray = normalizeInstagramDataArray(fallbackData.data);
+      if (!fallbackArray.length) {
+        throw new Error('Empty shortcode fallback response');
+      }
+
+      const fallbackPost = buildInstagramPost(fallbackArray[0], fallbackArray);
+      const fallbackHasUnsafeVideoUrl = fallbackPost.mediaUrls.some(isLikelyInstagramVideoOnlyUrl);
+      if (fallbackPost.mediaUrls.length && !fallbackHasUnsafeVideoUrl) {
+        console.log(`[Instagram] Replaced video-only media URL for ${post.shortcode} with shortcode media URL.`);
+        return {
+          ...post,
+          mediaUrls: fallbackPost.mediaUrls,
+          imageUrl: fallbackPost.imageUrl || post.imageUrl,
+          type: fallbackPost.type || post.type,
+        };
+      }
+    } catch (error) {
+      console.error(`[Instagram] Failed to resolve audio-safe media for ${post.shortcode}:`, getErrorMessage(error));
+    }
   }
 
-  try {
-    const fallbackData = await fetchMediaByShortcode(post.shortcode, options.rapidApiKey);
-    const fallbackArray = normalizeInstagramDataArray(fallbackData.data);
-    if (!fallbackArray.length) {
-      throw new Error('Empty shortcode fallback response');
-    }
-
-    const fallbackPost = buildInstagramPost(fallbackArray[0], fallbackArray);
-    const fallbackHasUnsafeVideoUrl = fallbackPost.mediaUrls.some(isLikelyInstagramVideoOnlyUrl);
-    if (fallbackPost.mediaUrls.length && !fallbackHasUnsafeVideoUrl) {
-      console.log(`[Instagram] Replaced video-only media URL for ${post.shortcode} with shortcode media URL.`);
-      return {
-        ...post,
-        mediaUrls: fallbackPost.mediaUrls,
-        imageUrl: fallbackPost.imageUrl || post.imageUrl,
-        type: fallbackPost.type || post.type,
-      };
-    }
-  } catch (error) {
-    console.error(`[Instagram] Failed to resolve audio-safe media for ${post.shortcode}:`, getErrorMessage(error));
-  }
-
-  throw new Error(`Instagram returned video-only media for ${post.shortcode}; skipped to avoid publishing without sound.`);
+  console.warn(`[Instagram] Video-only media URL remains for ${post.shortcode || post.postKey}; publication step will validate before upload.`);
+  return post;
 }
 
 async function tryFetchUrl(url: string): Promise<boolean> {
