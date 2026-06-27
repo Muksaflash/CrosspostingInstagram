@@ -33,8 +33,11 @@ type PublicationCandidate = {
   net: PublishNetwork;
   accountId: string;
   accountIdValue: string | number;
+  baseLockId: string;
   lockId: string;
   lockRef: DocumentReference;
+  forcedDuplicate?: boolean;
+  forceAttemptId?: string;
 };
 
 type AuthSession = {
@@ -134,13 +137,21 @@ async function claimPublicationLocks(candidates: PublicationCandidate[]) {
         return;
       }
 
-      tx.set(candidate.lockRef, {
+      const lockData: Record<string, unknown> = {
         accountId: candidate.accountId,
         networkName: candidate.net?.name || "",
         status: "pending",
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
-      });
+      };
+
+      if (candidate.forcedDuplicate) {
+        lockData.forcedDuplicate = true;
+        lockData.originalLockId = candidate.baseLockId;
+        lockData.forceAttemptId = candidate.forceAttemptId || "";
+      }
+
+      tx.set(candidate.lockRef, lockData);
       claimed.push(candidate);
     });
 
@@ -185,9 +196,16 @@ export async function POST(req: Request) {
       postAt?: string;
       postKey?: unknown;
       postUrl?: unknown;
+      forceDuplicate?: boolean;
+      forceAttemptId?: unknown;
     };
     const { networks, originalCaption, postAt, postKey, postUrl } = body;
     let mediaUrls = body.mediaUrls;
+    const forceDuplicate = body.forceDuplicate === true;
+    const rawForceAttemptId = typeof body.forceAttemptId === "string" ? body.forceAttemptId.trim() : "";
+    const forceAttemptId = forceDuplicate
+      ? (rawForceAttemptId ? rawForceAttemptId.slice(0, 128) : crypto.randomUUID())
+      : "";
 
     const settings = await getUserSettings();
     const token = settings?.POSTMYPOST_TOKEN;
@@ -276,17 +294,23 @@ export async function POST(req: Request) {
       if (isPhotoCarousel && !filters.includes('carousel')) continue;
       if (isMixed && !filters.includes('mixed_carousel')) continue;
 
-      const lockId = sha256(JSON.stringify([userDataKey, projectId, accountId, postIdentity]));
+      const baseLockId = sha256(JSON.stringify([userDataKey, projectId, accountId, postIdentity]));
+      const lockId = forceDuplicate
+        ? sha256(JSON.stringify([userDataKey, projectId, accountId, postIdentity, "force", forceAttemptId]))
+        : baseLockId;
       candidates.push({
         net,
         accountId,
         accountIdValue,
+        baseLockId,
         lockId,
         lockRef: firestore
           .collection("users")
           .doc(userDataKey)
           .collection("publicationLocks")
           .doc(lockId),
+        forcedDuplicate: forceDuplicate || undefined,
+        forceAttemptId: forceDuplicate ? forceAttemptId : undefined,
       });
     }
 
@@ -471,6 +495,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ...pubRes,
       skippedDuplicates,
+      forcedDuplicate: forceDuplicate || undefined,
       publishedAccounts: claimed.map((candidate) => ({
         accountId: candidate.accountId,
         networkName: candidate.net?.name || candidate.accountId,

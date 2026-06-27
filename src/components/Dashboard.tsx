@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Instagram, Wand2, Send, RefreshCw, Settings, Search, Key, Save, LogOut, Plus, X, Trash2, Zap, ImageOff } from "lucide-react";
 import { saveSocialNetwork, saveUserSetting, setAutoPostEnabledSetting, getUserSettings, getQuotas } from "@/app/actions";
 import { translations } from "@/i18n/translations";
@@ -165,6 +165,8 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [expandedSettingsIdx, setExpandedSettingsIdx] = useState<number | null>(null);
   const [advancedSettingsIdx, setAdvancedSettingsIdx] = useState<number | null>(null);
+  const [duplicateConfirm, setDuplicateConfirm] = useState<{ message: string } | null>(null);
+  const duplicateConfirmResolver = useRef<((confirmed: boolean) => void) | null>(null);
 
   useEffect(() => {
     // Always load settings on mount to restore auto-post toggle state
@@ -398,6 +400,45 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
     };
   };
 
+  type PublishResponseBody = {
+    status?: string;
+    skippedDuplicates?: unknown[];
+    publishedAccounts?: unknown[];
+    forcedDuplicate?: boolean;
+  };
+
+  const formatDashboardText = (keyPath: string, values: Record<string, string | number> = {}) => {
+    let text = t('dashboard', keyPath);
+    for (const [key, value] of Object.entries(values)) {
+      text = text.replace(`{${key}}`, String(value));
+    }
+    return text;
+  };
+
+  const createForceAttemptId = () => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  };
+
+  const askDuplicatePublishConfirm = (message: string) => {
+    if (duplicateConfirmResolver.current) {
+      duplicateConfirmResolver.current(false);
+    }
+
+    setDuplicateConfirm({ message });
+    return new Promise<boolean>((resolve) => {
+      duplicateConfirmResolver.current = resolve;
+    });
+  };
+
+  const resolveDuplicatePublishConfirm = (confirmed: boolean) => {
+    duplicateConfirmResolver.current?.(confirmed);
+    duplicateConfirmResolver.current = null;
+    setDuplicateConfirm(null);
+  };
+
   const readPublishError = async (res: Response): Promise<PublishErrorResponse> => {
     const text = await res.text();
     try {
@@ -517,46 +558,70 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
     setPublishingAll(true);
 
     try {
-      const res = await fetch("/api/postmypost/publish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          networks: networksWithPinLink,
-          mediaUrls: post.mediaUrls,
-          originalCaption: post.caption,
-          postKey: post.postKey,
-          postUrl: post.postUrl,
-          postAt: scheduleDate ? new Date(scheduleDate).toISOString() : undefined
-        })
-      });
+      const sendPublishAllRequest = async (forceDuplicate = false, forceAttemptId?: string): Promise<PublishResponseBody> => {
+        const res = await fetch("/api/postmypost/publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            networks: networksWithPinLink,
+            mediaUrls: post.mediaUrls,
+            originalCaption: post.caption,
+            postKey: post.postKey,
+            postUrl: post.postUrl,
+            postAt: scheduleDate ? new Date(scheduleDate).toISOString() : undefined,
+            ...(forceDuplicate ? { forceDuplicate: true, forceAttemptId } : {})
+          })
+        });
 
-      if (!res.ok) {
-        throw new Error(getPublishErrorMessage(await readPublishError(res)));
+        if (!res.ok) {
+          throw new Error(getPublishErrorMessage(await readPublishError(res)));
+        }
+
+        try {
+          return await res.json();
+        } catch {
+          return {};
+        }
+      };
+
+      let responseBody = await sendPublishAllRequest();
+      let skippedCount = responseBody?.skippedDuplicates?.length || 0;
+      let publishedCount = Array.isArray(responseBody?.publishedAccounts)
+        ? responseBody.publishedAccounts.length
+        : (responseBody?.status === 'skipped' ? 0 : enabledNetworks.length);
+
+      if (skippedCount && !publishedCount && responseBody?.status === 'skipped') {
+        const confirmed = await askDuplicatePublishConfirm(t('dashboard', 'publishAlerts.duplicateConfirmAll'));
+        if (!confirmed) {
+          enabledNetworks.forEach(net => {
+            const idx = newNetworks.findIndex(n => n === net);
+            if (idx !== -1) newNetworks[idx].status = 'idle';
+          });
+          setNetworks([...newNetworks]);
+          return;
+        }
+
+        responseBody = await sendPublishAllRequest(true, createForceAttemptId());
+        skippedCount = responseBody?.skippedDuplicates?.length || 0;
+        publishedCount = Array.isArray(responseBody?.publishedAccounts)
+          ? responseBody.publishedAccounts.length
+          : (responseBody?.status === 'skipped' ? 0 : enabledNetworks.length);
       }
-
-      let responseBody: { status?: string; skippedDuplicates?: unknown[]; publishedAccounts?: unknown[] } | null = null;
-      try {
-        responseBody = await res.json();
-      } catch {}
 
       enabledNetworks.forEach(net => {
         const idx = newNetworks.findIndex(n => n === net);
         if (idx !== -1) newNetworks[idx].status = 'success';
       });
-      const skippedCount = responseBody?.skippedDuplicates?.length || 0;
-      const publishedCount = Array.isArray(responseBody?.publishedAccounts)
-        ? responseBody.publishedAccounts.length
-        : (responseBody?.status === 'skipped' ? 0 : enabledNetworks.length);
       if (skippedCount) {
         if (!publishedCount) {
-          alert('Already published. Duplicate publication skipped.');
+          alert(t('dashboard', 'publishAlerts.duplicateSkipped'));
         } else {
-          alert(`Published. ${skippedCount} duplicate account(s) skipped.`);
+          alert(formatDashboardText('publishAlerts.duplicatesSkipped', { count: skippedCount }));
         }
         setNetworks([...newNetworks]);
         return;
       }
-      alert('Успешно опубликовано!');
+      alert(t('dashboard', 'publishAlerts.published'));
     } catch (err: any) {
       console.error(err);
       enabledNetworks.forEach(net => {
@@ -682,41 +747,64 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
     }
 
     try {
-      const res = await fetch("/api/postmypost/publish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          networks: [netToPublish],
-          mediaUrls: post.mediaUrls,
-          originalCaption: post.caption,
-          postKey: post.postKey,
-          postUrl: post.postUrl,
-          postAt: scheduleDate ? new Date(scheduleDate).toISOString() : undefined
-        })
-      });
+      const sendPublishSingleRequest = async (forceDuplicate = false, forceAttemptId?: string): Promise<PublishResponseBody> => {
+        const res = await fetch("/api/postmypost/publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            networks: [netToPublish],
+            mediaUrls: post.mediaUrls,
+            originalCaption: post.caption,
+            postKey: post.postKey,
+            postUrl: post.postUrl,
+            postAt: scheduleDate ? new Date(scheduleDate).toISOString() : undefined,
+            ...(forceDuplicate ? { forceDuplicate: true, forceAttemptId } : {})
+          })
+        });
 
-      if (!res.ok) {
-        throw new Error(getPublishErrorMessage(await readPublishError(res)));
-      }
+        if (!res.ok) {
+          throw new Error(getPublishErrorMessage(await readPublishError(res)));
+        }
 
-      let responseBody: { status?: string; skippedDuplicates?: unknown[]; publishedAccounts?: unknown[] } | null = null;
-      try {
-        responseBody = await res.json();
-      } catch {}
+        try {
+          return await res.json();
+        } catch {
+          return {};
+        }
+      };
 
-      const skippedCount = responseBody?.skippedDuplicates?.length || 0;
-      const publishedCount = Array.isArray(responseBody?.publishedAccounts)
+      let responseBody = await sendPublishSingleRequest();
+
+      let skippedCount = responseBody?.skippedDuplicates?.length || 0;
+      let publishedCount = Array.isArray(responseBody?.publishedAccounts)
         ? responseBody.publishedAccounts.length
         : (responseBody?.status === 'skipped' ? 0 : 1);
+      if (skippedCount && !publishedCount && responseBody?.status === 'skipped') {
+        const confirmed = await askDuplicatePublishConfirm(
+          formatDashboardText('publishAlerts.duplicateConfirmSingle', { network: networks[index].name })
+        );
+        if (!confirmed) {
+          newNetworks[index].status = 'idle';
+          setNetworks([...newNetworks]);
+          return;
+        }
+
+        responseBody = await sendPublishSingleRequest(true, createForceAttemptId());
+        skippedCount = responseBody?.skippedDuplicates?.length || 0;
+        publishedCount = Array.isArray(responseBody?.publishedAccounts)
+          ? responseBody.publishedAccounts.length
+          : (responseBody?.status === 'skipped' ? 0 : 1);
+      }
+
       if (skippedCount && !publishedCount) {
-        newNetworks[index].status = 'success';
-        alert('Already published. Duplicate publication skipped.');
+        newNetworks[index].status = 'idle';
+        alert(t('dashboard', 'publishAlerts.duplicateSkipped'));
         setNetworks([...newNetworks]);
         return;
       }
 
       newNetworks[index].status = 'success';
-      alert(`Успешно опубликовано в ${networks[index].name}!`);
+      alert(formatDashboardText('publishAlerts.publishedTo', { network: networks[index].name }));
     } catch (err: any) {
       console.error(err);
       newNetworks[index].status = 'error';
@@ -741,6 +829,39 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
 
   return (
     <div className="space-y-6">
+      {duplicateConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-5 shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
+          >
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+              {t('dashboard', 'publishAlerts.duplicateTitle')}
+            </h3>
+            <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+              {duplicateConfirm.message}
+            </p>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => resolveDuplicatePublishConfirm(false)}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-800"
+              >
+                {t('dashboard', 'publishAlerts.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => resolveDuplicatePublishConfirm(true)}
+                className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700"
+              >
+                {t('dashboard', 'publishAlerts.confirmRepeat')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center border-b pb-4">
         <div className="flex gap-4">
           <button

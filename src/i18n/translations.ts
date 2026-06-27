@@ -88,6 +88,17 @@ export const translations = {
         addNetwork: "Add Network",
         publishAll: "Publish All"
       },
+      publishAlerts: {
+        duplicateTitle: "Duplicate publication",
+        duplicateConfirmAll: "This post has already been published to the selected networks. Publish it again?",
+        duplicateConfirmSingle: "This post has already been published to {network}. Publish it again?",
+        cancel: "Cancel",
+        confirmRepeat: "Yes, publish again",
+        duplicateSkipped: "Already published. Duplicate publication skipped.",
+        duplicatesSkipped: "Published. {count} duplicate account(s) skipped.",
+        published: "Published successfully!",
+        publishedTo: "Published successfully to {network}!"
+      },
       networkCard: {
         rewrite: "Rewrite text",
         publish: "Publish",
@@ -233,6 +244,17 @@ export const translations = {
         title: "Социальные сети",
         addNetwork: "Добавить соцсеть",
         publishAll: "Опубликовать всё"
+      },
+      publishAlerts: {
+        duplicateTitle: "Повторная публикация",
+        duplicateConfirmAll: "Этот пост уже публиковался в выбранные соцсети. Опубликовать повторно?",
+        duplicateConfirmSingle: "Этот пост уже публиковался в {network}. Опубликовать повторно?",
+        cancel: "Отмена",
+        confirmRepeat: "Да, опубликовать повторно",
+        duplicateSkipped: "Этот пост уже публиковался. Повторная публикация пропущена.",
+        duplicatesSkipped: "Опубликовано. Дубли пропущены: {count}.",
+        published: "Успешно опубликовано!",
+        publishedTo: "Успешно опубликовано в {network}!"
       },
       networkCard: {
         rewrite: "Переписать текст",
