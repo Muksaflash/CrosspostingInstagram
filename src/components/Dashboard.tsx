@@ -456,14 +456,14 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
   const getPublishErrorMessage = (error: PublishErrorResponse) => {
     if (error.code === 'SLIDESHOW_CREATION_FAILED') {
       return language === 'ru'
-        ? 'Не получилось создать слайдшоу: ошибка подключенного сервиса Cloudinary. Попробуйте ещё раз. Если ошибка повторится, обратитесь к администратору.'
-        : 'Could not create the slideshow: the connected Cloudinary service returned an error. Please try again. If the error repeats, contact the administrator.';
+        ? 'Не получилось создать слайдшоу для публикации. Попробуйте ещё раз. Если ошибка повторится, обратитесь к администратору.'
+        : 'Could not create the slideshow for publishing. Please try again. If the error repeats, contact the administrator.';
     }
 
     if (error.code === 'SLIDESHOW_SERVICE_NOT_CONFIGURED') {
       return language === 'ru'
-        ? 'Не получилось создать слайдшоу: сервис Cloudinary не настроен. Проверьте настройки или обратитесь к администратору.'
-        : 'Could not create the slideshow: Cloudinary is not configured. Check the settings or contact the administrator.';
+        ? 'Не получилось создать слайдшоу для публикации. Проверьте настройки или обратитесь к администратору.'
+        : 'Could not create the slideshow for publishing. Check the settings or contact the administrator.';
     }
 
     if (error.code === 'TIKTOK_REQUIRES_SINGLE_VIDEO') {

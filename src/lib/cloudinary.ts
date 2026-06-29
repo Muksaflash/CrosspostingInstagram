@@ -88,7 +88,7 @@ export async function uploadToCloudinary(
 ) {
   const url = `https://api.cloudinary.com/v1_1/${conf.cloudName}/${resourceType}/upload`;
   const timestamp = String(Math.floor(Date.now() / 1000));
-  
+
   const signature = cloudinarySignature({ timestamp }, conf.apiSecret);
 
   const formData = new FormData();
@@ -98,7 +98,7 @@ export async function uploadToCloudinary(
     const ext = resourceType === 'video' ? '.mp4' : '.jpg';
     fileObj = new File([blob], `upload_file${ext}`, { type: blob.type || defaultMime });
   } catch { }
-  
+
   formData.append('file', fileObj);
   formData.append('api_key', conf.apiKey);
   formData.append('timestamp', timestamp);

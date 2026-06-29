@@ -1,3 +1,5 @@
+import { promises as fs } from 'fs';
+import path from 'path';
 
 const BASE_URL = 'https://api.postmypost.io/v4.1';
 const UPLOAD_RETRY_DELAYS_MS = [1500, 3000, 6000];
@@ -16,6 +18,38 @@ export interface PostMyPostAccount {
   connection_status?: string | number;
 }
 
+type UploadFieldValue = string | number | boolean | null | undefined;
+type UploadField = { key: string; value: UploadFieldValue };
+type UploadFields = UploadField[] | Record<string, UploadFieldValue>;
+
+type UploadInitResponse = {
+  id: string | number;
+  action: string;
+  fields?: UploadFields;
+};
+
+type UploadStatusResponse = {
+  status?: string | number;
+  file_id?: string | number;
+  id?: string | number;
+  files?: Array<{ id?: string | number }>;
+};
+
+type UploadBlobInput = {
+  blob: Blob;
+  fileName: string;
+  mimeType: string;
+  sourceLabel: string;
+};
+
+type PublicationPayload = Record<string, unknown>;
+type PublicationResponse = Record<string, unknown> & {
+  id?: string | number;
+  data?: {
+    id?: string | number;
+  };
+};
+
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -28,46 +62,72 @@ async function textOrEmpty(res: Response): Promise<string> {
   }
 }
 
-export async function uploadMediaToPostMyPost(media: PostMyPostMedia, token: string, projectId: number): Promise<string> {
-const fileName = media.fileName || `media_${Date.now()}`;
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
-// 0. Download from URL to Blob/Buffer
-  console.log(`[PMP Upload] Downloading media from ${media.url.substring(0, 100)}...`);
-  let fileRes;
-  try {
-    fileRes = await fetch(media.url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+function inferMimeType(fileName: string, blobType?: string): string {
+  if (blobType && blobType !== 'application/octet-stream') return blobType;
+
+  const lower = fileName.toLowerCase();
+  if (lower.endsWith('.mp4')) return 'video/mp4';
+  if (lower.endsWith('.mov')) return 'video/quicktime';
+  if (lower.endsWith('.webm')) return 'video/webm';
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  return 'image/jpeg';
+}
+
+function appendUploadFields(formData: FormData, fields?: UploadFields) {
+  if (!fields) return;
+
+  if (Array.isArray(fields)) {
+    // PostMyPost returns fields as array of {key, value}; S3 expects "key" first.
+    const keyField = fields.find((field) => field.key === 'key');
+    if (keyField?.value !== undefined && keyField.value !== null) {
+      formData.append('key', String(keyField.value));
+    }
+
+    for (const field of fields) {
+      if (field.key !== 'key' && field.value !== undefined && field.value !== null) {
+        formData.append(String(field.key), String(field.value));
       }
-    });
-  } catch (e: any) {
-    throw new Error(`Failed to download media ${media.url}: ${e.message}`);
+    }
+    return;
   }
-  if (!fileRes.ok) throw new Error(`Failed to download media: ${media.url} (Status: ${fileRes.status})`);
-const blob = await fileRes.blob();
-const size = blob.size;
 
-// 1. Init Upload
-  console.log(`[PMP Upload] Init upload for ${fileName} (${size} bytes)`);
+  if (fields.key !== undefined && fields.key !== null) {
+    formData.append('key', String(fields.key));
+  }
+
+  for (const [key, value] of Object.entries(fields)) {
+    if (key !== 'key' && value !== undefined && value !== null) {
+      formData.append(key, String(value));
+    }
+  }
+}
+
+async function initUpload(input: UploadBlobInput, token: string, projectId: number): Promise<UploadInitResponse> {
   let initRes: Response | null = null;
   let initErrorText = '';
+
   for (let attempt = 0; attempt <= UPLOAD_RETRY_DELAYS_MS.length; attempt++) {
     try {
       initRes = await fetch(`${BASE_URL}/upload/init`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           project_id: projectId,
-          name: fileName,
-          size: size
-        })
+          name: input.fileName,
+          size: input.blob.size,
+        }),
       });
-    } catch (e: any) {
+    } catch (error: unknown) {
       if (attempt === UPLOAD_RETRY_DELAYS_MS.length) {
-        throw new Error(`PostMyPost Init Fetch Error: ${e.message}`);
+        throw new Error(`PostMyPost Init Fetch Error: ${errorMessage(error)}`);
       }
       await sleep(UPLOAD_RETRY_DELAYS_MS[attempt]);
       continue;
@@ -80,108 +140,135 @@ const size = blob.size;
       throw new Error(`PostMyPost Init Error: ${initErrorText}`);
     }
 
-    console.warn(`[PMP Upload] Init rate limited for ${fileName}, retrying in ${UPLOAD_RETRY_DELAYS_MS[attempt]}ms`);
+    console.warn(`[PMP Upload] Init rate limited for ${input.fileName}, retrying in ${UPLOAD_RETRY_DELAYS_MS[attempt]}ms`);
     await sleep(UPLOAD_RETRY_DELAYS_MS[attempt]);
   }
 
-if (!initRes || !initRes.ok) throw new Error(`PostMyPost Init Error: ${initErrorText}`);
-const initData = await initRes.json();
-const uploadId = initData.id;
-const uploadUrl = initData.action;
-const fields = initData.fields;
+  if (!initRes || !initRes.ok) throw new Error(`PostMyPost Init Error: ${initErrorText}`);
+
+  const initData = await initRes.json() as UploadInitResponse;
+  if (!initData.id || !initData.action) {
+    throw new Error(`PostMyPost Init Error: unexpected response ${JSON.stringify(initData)}`);
+  }
+
+  return initData;
+}
+
+async function uploadBlobToPostMyPost(input: UploadBlobInput, token: string, projectId: number): Promise<string> {
+  console.log(
+    `[PMP Upload] Init upload for ${input.fileName} (${input.blob.size} bytes) from ${input.sourceLabel.substring(0, 100)}`
+  );
+
+  const initData = await initUpload(input, token, projectId);
+  const uploadId = initData.id;
+  const uploadUrl = initData.action;
 
   console.log(`[PMP Upload] Init successful. Upload ID: ${uploadId}, URL: ${uploadUrl}`);
 
-// 2. Upload to S3
-const formData = new FormData();
-  if (fields && Array.isArray(fields)) {
-    // PostMyPost returns fields as array of {key, value} objects
-    // AWS S3 requires 'key' to be the first field
-    const keyField = fields.find((f: any) => f.key === 'key');
-    if (keyField) {
-      formData.append('key', String(keyField.value));
-    }
-    for (const field of fields) {
-      if (field.key !== 'key') {
-        formData.append(String(field.key), String(field.value));
-      }
-    }
-  } else if (fields && typeof fields === 'object') {
-    // Fallback: flat object format
-    if (fields.key) {
-      formData.append('key', String(fields.key));
-    }
-    Object.keys(fields).forEach(k => {
-      if (k !== 'key') {
-        formData.append(k, String(fields[k]));
-      }
-  });
-}
-  // Try converting to File type if available, otherwise fallback to blob
-  let fileObj = blob;
-  try {
-    const isVideo = fileName.endsWith('.mp4');
-    const mime = blob.type && blob.type !== 'application/octet-stream'
-      ? blob.type
-      : (isVideo ? 'video/mp4' : 'image/jpeg');
+  const formData = new FormData();
+  appendUploadFields(formData, initData.fields);
+  formData.append('file', input.blob, input.fileName);
 
-    fileObj = new File([blob], fileName, { type: mime });
-  } catch (err) {
-    // If File is not defined in this environment, it just uses the blob
-  }
-  formData.append('file', fileObj);
-
-  let s3Res;
+  let s3Res: Response;
   try {
     s3Res = await fetch(uploadUrl, {
       method: 'POST',
-      body: formData
+      body: formData,
     });
-  } catch (e: any) {
-    throw new Error(`S3 Upload Fetch Error (${uploadUrl}): ${e.message}`);
+  } catch (error: unknown) {
+    throw new Error(`S3 Upload Fetch Error (${uploadUrl}): ${errorMessage(error)}`);
   }
 
-if (!s3Res.ok && s3Res.status !== 201 && s3Res.status !== 204) {
-  throw new Error(`S3 Upload Error: ${s3Res.status} ${await s3Res.text()}`);
-}
+  if (!s3Res.ok && s3Res.status !== 201 && s3Res.status !== 204) {
+    throw new Error(`S3 Upload Error: ${s3Res.status} ${await s3Res.text()}`);
+  }
 
-// 3. Complete Upload
   console.log(`[PMP Upload] S3 complete. Completing PMP upload for ${uploadId}`);
-  let completeRes;
+  let completeRes: Response;
   try {
     completeRes = await fetch(`${BASE_URL}/upload/complete?id=${encodeURIComponent(uploadId)}`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: { 'Authorization': `Bearer ${token}` },
     });
-  } catch (e: any) {
-    throw new Error(`PostMyPost Complete Fetch Error: ${e.message}`);
+  } catch (error: unknown) {
+    throw new Error(`PostMyPost Complete Fetch Error: ${errorMessage(error)}`);
   }
 
-if (!completeRes.ok) throw new Error(`PostMyPost Complete Error: ${await completeRes.text()}`);
+  if (!completeRes.ok) {
+    throw new Error(`PostMyPost Complete Error: ${await completeRes.text()}`);
+  }
 
-// 4. Wait for Status (Poll)
-const maxAttempts = 15;
-for (let i = 0; i < maxAttempts; i++) {
-  await new Promise(r => setTimeout(r, 2000)); // Sleep 2s
-  
-  const statusRes = await fetch(`${BASE_URL}/upload/status?id=${encodeURIComponent(uploadId)}`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  
-  if (!statusRes.ok) continue;
-  
-  const statusData = await statusRes.json();
-  // status: 1 (Completed), 2 (Error), 0 (Processing)
-  if (statusData.status === 1 || statusData.status === 'COMPLETED') {
-    return statusData.file_id || statusData.id || statusData.files?.[0]?.id;
+  const maxAttempts = 15;
+  for (let i = 0; i < maxAttempts; i++) {
+    await sleep(2000);
+
+    const statusRes = await fetch(`${BASE_URL}/upload/status?id=${encodeURIComponent(uploadId)}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+
+    if (!statusRes.ok) continue;
+
+    const statusData = await statusRes.json() as UploadStatusResponse;
+    if (statusData.status === 1 || statusData.status === 'COMPLETED' || statusData.status === 'completed') {
+      const fileId = statusData.file_id ?? statusData.id ?? statusData.files?.[0]?.id;
+      if (!fileId) {
+        throw new Error(`PostMyPost Processing Error: upload completed without file id ${JSON.stringify(statusData)}`);
+      }
+      return String(fileId);
+    }
+
+    if (statusData.status === 2 || statusData.status === 'ERROR' || statusData.status === 'error') {
+      throw new Error(`PostMyPost Processing Error: ${JSON.stringify(statusData)}`);
+    }
   }
-  
-  if (statusData.status === 2 || statusData.status === 'ERROR') {
-    throw new Error(`PostMyPost Processing Error: ${JSON.stringify(statusData)}`);
-  }
+
+  throw new Error('PostMyPost Upload Timeout');
 }
 
-throw new Error('PostMyPost Upload Timeout');
+export async function uploadMediaToPostMyPost(media: PostMyPostMedia, token: string, projectId: number): Promise<string> {
+  const fileName = media.fileName || `media_${Date.now()}`;
+
+  console.log(`[PMP Upload] Downloading media from ${media.url.substring(0, 100)}...`);
+  let fileRes: Response;
+  try {
+    fileRes = await fetch(media.url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    });
+  } catch (error: unknown) {
+    throw new Error(`Failed to download media ${media.url}: ${errorMessage(error)}`);
+  }
+
+  if (!fileRes.ok) {
+    throw new Error(`Failed to download media: ${media.url} (Status: ${fileRes.status})`);
+  }
+
+  const blob = await fileRes.blob();
+  return uploadBlobToPostMyPost({
+    blob,
+    fileName,
+    mimeType: inferMimeType(fileName, blob.type),
+    sourceLabel: media.url,
+  }, token, projectId);
+}
+
+export async function uploadFileToPostMyPost(
+  filePath: string,
+  token: string,
+  projectId: number,
+  fileName = path.basename(filePath)
+): Promise<string> {
+  const mimeType = inferMimeType(fileName);
+  const buffer = await fs.readFile(filePath);
+  const blob = new Blob([new Uint8Array(buffer)], { type: mimeType });
+
+  return uploadBlobToPostMyPost({
+    blob,
+    fileName,
+    mimeType,
+    sourceLabel: filePath,
+  }, token, projectId);
 }
 
 export async function uploadMediaUrlsToPostMyPost(urls: string[], token: string, projectId: number): Promise<string[]> {
@@ -208,7 +295,7 @@ export async function getPostMyPostAccounts(token: string, projectId: number): P
     headers: {
       'Authorization': `Bearer ${token}`,
       'Accept': 'application/json',
-    }
+    },
   });
 
   if (!res.ok) {
@@ -222,19 +309,19 @@ export async function getPostMyPostAccounts(token: string, projectId: number): P
   return [];
 }
 
-export async function createPublication(params: any, token: string): Promise<any> {
-const res = await fetch(`${BASE_URL}/publications`, {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify(params)
-});
+export async function createPublication(params: PublicationPayload, token: string): Promise<PublicationResponse> {
+  const res = await fetch(`${BASE_URL}/publications`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(params),
+  });
 
-if (!res.ok) {
-  throw new Error(`PostMyPost Publication Error: ${res.status} ${await res.text()}`);
-}
+  if (!res.ok) {
+    throw new Error(`PostMyPost Publication Error: ${res.status} ${await res.text()}`);
+  }
 
-return await res.json();
+  return await res.json();
 }

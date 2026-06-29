@@ -4,11 +4,12 @@ import { safeCompare } from "@/lib/security";
 import { getRecentInstagramPosts, resolveInstagramAudioSafeMediaUrls, type InstagramPost } from "@/lib/instagram";
 import { type SocialNetwork } from "@/lib/types";
 import { adaptText } from "@/lib/openai";
-import { uploadMediaUrlsToPostMyPost, createPublication, getPostMyPostAccounts } from "@/lib/postmypost";
-import { createCloudinarySlideshowUrl } from "@/lib/cloudinary";
+import { uploadMediaUrlsToPostMyPost, uploadFileToPostMyPost, createPublication, getPostMyPostAccounts } from "@/lib/postmypost";
+import { createSlideshowFile, type SlideshowFile } from "@/lib/slideshow";
 import { ensurePublicationTextLimits } from "@/lib/publishingText";
 import { getAutoPostedTracker, addPostToTracker } from "@/app/actions";
 
+export const runtime = "nodejs";
 export const maxDuration = 300; // Allow 5 mins for cron execution if on Vercel Pro
 export const dynamic = 'force-dynamic'; // Ensure it's not cached
 
@@ -424,21 +425,17 @@ export async function GET(req: Request) {
           let currentFileIds: string[] = [];
           if (useSlideshow) {
              if (!fileIdsSlideshow) {
-                const cloudinaryConf = {
-                  cloudName: settings["CLOUDINARY_CLOUD_NAME"],
-                  apiKey: settings["CLOUDINARY_API_KEY"],
-                  apiSecret: settings["CLOUDINARY_API_SECRET"]
-                };
-                if (!cloudinaryConf.cloudName || !cloudinaryConf.apiKey || !cloudinaryConf.apiSecret) {
-                  console.warn(`Cloudinary settings missing for ${net.name} (${email})`);
-                  continue;
-                }
+                let slideshowFile: SlideshowFile | null = null;
                try {
-                  const slideUrl = await createCloudinarySlideshowUrl(mediaUrls, cloudinaryConf);
-                  fileIdsSlideshow = await uploadMediaUrlsToPostMyPost([slideUrl], postMyPostToken, ppmProjectId);
-                } catch (slideErr: any) {
-                  console.error(`Slideshow creation failed for ${net.name} (${email}):`, slideErr.message);
+                  slideshowFile = await createSlideshowFile(mediaUrls);
+                  const fileId = await uploadFileToPostMyPost(slideshowFile.filePath, postMyPostToken, ppmProjectId, slideshowFile.fileName);
+                  fileIdsSlideshow = [fileId];
+                } catch (slideErr: unknown) {
+                  const message = slideErr instanceof Error ? slideErr.message : String(slideErr);
+                  console.error(`Slideshow creation failed for ${net.name} (${email}):`, message);
                   continue;
+                } finally {
+                  await slideshowFile?.cleanup();
                 }
             }
             if (fileIdsSlideshow) currentFileIds = fileIdsSlideshow;

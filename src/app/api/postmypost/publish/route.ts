@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getUserSettings } from "@/app/actions";
-import { uploadMediaUrlsToPostMyPost, createPublication, getPostMyPostAccounts } from "@/lib/postmypost";
-import { createCloudinarySlideshowUrl } from "@/lib/cloudinary";
+import { uploadMediaUrlsToPostMyPost, uploadFileToPostMyPost, createPublication, getPostMyPostAccounts } from "@/lib/postmypost";
+import { createSlideshowFile, type SlideshowFile } from "@/lib/slideshow";
 import { getPublicationTextLimitViolation } from "@/lib/publishingText";
 import { resolveInstagramAudioSafeMediaUrls } from "@/lib/instagram";
 import { firestore } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import type { DocumentReference } from "firebase-admin/firestore";
 import crypto from "crypto";
+
+export const runtime = "nodejs";
 
 type PublishNetwork = {
   accountId?: string | number;
@@ -411,29 +413,21 @@ export async function POST(req: Request) {
       let currentFileIds: string[] = [];
       if (useSlideshow) {
         if (!fileIdsSlideshow) {
-          const cloudinaryConf = {
-            cloudName: settings.CLOUDINARY_CLOUD_NAME,
-            apiKey: settings.CLOUDINARY_API_KEY,
-            apiSecret: settings.CLOUDINARY_API_SECRET
-          };
-          if (!cloudinaryConf.cloudName || !cloudinaryConf.apiKey || !cloudinaryConf.apiSecret) {
-            throw new PublishRouteError(
-              "SLIDESHOW_SERVICE_NOT_CONFIGURED",
-              `Cloudinary settings missing for slideshow generation (required for ${net.name})`,
-              400
-            );
-          }
+          let slideshowFile: SlideshowFile | null = null;
           try {
-            const slideUrl = await createCloudinarySlideshowUrl(mediaUrls, cloudinaryConf);
-            fileIdsSlideshow = await uploadMediaUrlsToPostMyPost([slideUrl], token, projectId);
+            slideshowFile = await createSlideshowFile(mediaUrls);
+            const fileId = await uploadFileToPostMyPost(slideshowFile.filePath, token, projectId, slideshowFile.fileName);
+            fileIdsSlideshow = [fileId];
           } catch (slideErr: unknown) {
             const message = slideErr instanceof Error ? slideErr.message : String(slideErr);
             console.error(`Slideshow creation failed for ${net.name || candidate.accountId}:`, message);
             throw new PublishRouteError(
               "SLIDESHOW_CREATION_FAILED",
-              "Cloudinary slideshow creation failed",
+              "Slideshow creation failed",
               502
             );
+          } finally {
+            await slideshowFile?.cleanup();
           }
         }
         currentFileIds = fileIdsSlideshow;
