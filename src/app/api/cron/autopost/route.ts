@@ -4,7 +4,7 @@ import { safeCompare } from "@/lib/security";
 import { getRecentInstagramPosts, resolveInstagramAudioSafeMediaUrls, type InstagramPost } from "@/lib/instagram";
 import { type SocialNetwork } from "@/lib/types";
 import { adaptText } from "@/lib/openai";
-import { uploadMediaUrlsToPostMyPost, uploadFileToPostMyPost, createPublication, getPostMyPostAccounts } from "@/lib/postmypost";
+import { uploadMediaUrlsToPostMyPost, uploadFileToPostMyPost, createPublication, getPostMyPostAccounts, type PostMyPostFileId } from "@/lib/postmypost";
 import { createSlideshowFile, type SlideshowFile } from "@/lib/slideshow";
 import { ensurePublicationTextLimits } from "@/lib/publishingText";
 import { getAutoPostedTracker, addPostToTracker } from "@/app/actions";
@@ -370,8 +370,8 @@ export async function GET(req: Request) {
         const isSingleVideo = mediaUrls.length === 1 && hasVideo;
         const isMixed = hasVideo && hasImage;
 
-        let fileIdsOriginal: string[] | null = null;
-        let fileIdsSlideshow: string[] | null = null;
+        let fileIdsOriginal: PostMyPostFileId[] | null = null;
+        let fileIdsSlideshow: PostMyPostFileId[] | null = null;
         const accountIds: string[] = [];
         const details: any[] = [];
 
@@ -422,7 +422,7 @@ export async function GET(req: Request) {
             useSlideshow = true;
           }
 
-          let currentFileIds: string[] = [];
+          let currentFileIds: PostMyPostFileId[] = [];
           if (useSlideshow) {
              if (!fileIdsSlideshow) {
                 let slideshowFile: SlideshowFile | null = null;

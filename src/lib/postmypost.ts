@@ -42,6 +42,8 @@ type UploadBlobInput = {
   sourceLabel: string;
 };
 
+export type PostMyPostFileId = number;
+
 type PublicationPayload = Record<string, unknown>;
 type PublicationResponse = Record<string, unknown> & {
   id?: string | number;
@@ -76,6 +78,14 @@ function inferMimeType(fileName: string, blobType?: string): string {
   if (lower.endsWith('.png')) return 'image/png';
   if (lower.endsWith('.webp')) return 'image/webp';
   return 'image/jpeg';
+}
+
+function normalizeFileId(fileId: string | number): PostMyPostFileId {
+  const numericId = typeof fileId === 'number' ? fileId : Number(fileId);
+  if (!Number.isInteger(numericId) || numericId <= 0) {
+    throw new Error(`PostMyPost Processing Error: invalid file id ${String(fileId)}`);
+  }
+  return numericId;
 }
 
 function appendUploadFields(formData: FormData, fields?: UploadFields) {
@@ -154,7 +164,7 @@ async function initUpload(input: UploadBlobInput, token: string, projectId: numb
   return initData;
 }
 
-async function uploadBlobToPostMyPost(input: UploadBlobInput, token: string, projectId: number): Promise<string> {
+async function uploadBlobToPostMyPost(input: UploadBlobInput, token: string, projectId: number): Promise<PostMyPostFileId> {
   console.log(
     `[PMP Upload] Init upload for ${input.fileName} (${input.blob.size} bytes) from ${input.sourceLabel.substring(0, 100)}`
   );
@@ -214,7 +224,7 @@ async function uploadBlobToPostMyPost(input: UploadBlobInput, token: string, pro
       if (!fileId) {
         throw new Error(`PostMyPost Processing Error: upload completed without file id ${JSON.stringify(statusData)}`);
       }
-      return String(fileId);
+      return normalizeFileId(fileId);
     }
 
     if (statusData.status === 2 || statusData.status === 'ERROR' || statusData.status === 'error') {
@@ -225,7 +235,11 @@ async function uploadBlobToPostMyPost(input: UploadBlobInput, token: string, pro
   throw new Error('PostMyPost Upload Timeout');
 }
 
-export async function uploadMediaToPostMyPost(media: PostMyPostMedia, token: string, projectId: number): Promise<string> {
+export async function uploadMediaToPostMyPost(
+  media: PostMyPostMedia,
+  token: string,
+  projectId: number
+): Promise<PostMyPostFileId> {
   const fileName = media.fileName || `media_${Date.now()}`;
 
   console.log(`[PMP Upload] Downloading media from ${media.url.substring(0, 100)}...`);
@@ -258,7 +272,7 @@ export async function uploadFileToPostMyPost(
   token: string,
   projectId: number,
   fileName = path.basename(filePath)
-): Promise<string> {
+): Promise<PostMyPostFileId> {
   const mimeType = inferMimeType(fileName);
   const buffer = await fs.readFile(filePath);
   const blob = new Blob([new Uint8Array(buffer)], { type: mimeType });
@@ -271,8 +285,12 @@ export async function uploadFileToPostMyPost(
   }, token, projectId);
 }
 
-export async function uploadMediaUrlsToPostMyPost(urls: string[], token: string, projectId: number): Promise<string[]> {
-  const ids: string[] = [];
+export async function uploadMediaUrlsToPostMyPost(
+  urls: string[],
+  token: string,
+  projectId: number
+): Promise<PostMyPostFileId[]> {
+  const ids: PostMyPostFileId[] = [];
   const validUrls = urls.filter(url => !!url);
 
   for (let index = 0; index < validUrls.length; index++) {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getUserSettings } from "@/app/actions";
-import { uploadMediaUrlsToPostMyPost, uploadFileToPostMyPost, createPublication, getPostMyPostAccounts } from "@/lib/postmypost";
+import { uploadMediaUrlsToPostMyPost, uploadFileToPostMyPost, createPublication, getPostMyPostAccounts, type PostMyPostFileId } from "@/lib/postmypost";
 import { createSlideshowFile, type SlideshowFile } from "@/lib/slideshow";
 import { getPublicationTextLimitViolation } from "@/lib/publishingText";
 import { resolveInstagramAudioSafeMediaUrls } from "@/lib/instagram";
@@ -235,8 +235,8 @@ export async function POST(req: Request) {
     const isMixed = hasVideo && hasImage;
 
     // Cache uploaded file IDs to avoid duplicate work
-    let fileIdsOriginal: string[] | null = null;
-    let fileIdsSlideshow: string[] | null = null;
+    let fileIdsOriginal: PostMyPostFileId[] | null = null;
+    let fileIdsSlideshow: PostMyPostFileId[] | null = null;
 
     const accountIds: Array<string | number> = [];
     const details: Array<Record<string, unknown>> = [];
@@ -410,7 +410,7 @@ export async function POST(req: Request) {
         useSlideshow = true;
       }
 
-      let currentFileIds: string[] = [];
+      let currentFileIds: PostMyPostFileId[] = [];
       if (useSlideshow) {
         if (!fileIdsSlideshow) {
           let slideshowFile: SlideshowFile | null = null;
