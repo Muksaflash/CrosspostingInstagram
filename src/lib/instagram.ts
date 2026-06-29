@@ -1,8 +1,11 @@
+import { execFile } from 'child_process';
+
 const RAPIDAPI_HOST = 'instagram120.p.rapidapi.com';
 const API_ENDPOINT = 'https://instagram120.p.rapidapi.com/api/instagram/links';
 const API_MEDIA_BY_SHORTCODE_ENDPOINT = `https://${RAPIDAPI_HOST}/api/instagram/mediaByShortcode`;
 const RAPIDAPI_RETRY_DELAYS_MS = [1500, 4000];
 const VIDEO_EXTENSIONS = ['mp4', 'mov', 'avi', 'webm'];
+const FFMPEG_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -10,6 +13,18 @@ function sleep(ms: number): Promise<void> {
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function execFileAsync(file: string, args: string[], timeout: number): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    execFile(file, args, { timeout, maxBuffer: 1024 * 1024 }, (error, stdout, stderr) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve({ stdout, stderr });
+    });
+  });
 }
 
 function isRetryableInstagramError(error: unknown): boolean {
@@ -204,6 +219,36 @@ export function isLikelyInstagramVideoOnlyUrl(url: string): boolean {
   );
 }
 
+async function probeMediaHasAudio(url: string): Promise<boolean | null> {
+  try {
+    const { stdout } = await execFileAsync('ffprobe', [
+      '-v', 'error',
+      '-user_agent', FFMPEG_USER_AGENT,
+      '-rw_timeout', '15000000',
+      '-show_entries', 'stream=codec_type',
+      '-of', 'json',
+      url,
+    ], 20000);
+    const parsed = JSON.parse(stdout) as { streams?: Array<{ codec_type?: string }> };
+    return Boolean(parsed.streams?.some((stream) => stream.codec_type === 'audio'));
+  } catch (error) {
+    console.error('[Instagram] Failed to probe media audio stream:', getErrorMessage(error));
+    return null;
+  }
+}
+
+async function areSuspiciousInstagramMediaUrlsAudioSafe(mediaUrls: string[]): Promise<boolean> {
+  const suspiciousUrls = mediaUrls.filter(isLikelyInstagramVideoOnlyUrl);
+  if (!suspiciousUrls.length) return true;
+
+  for (const url of suspiciousUrls) {
+    const hasAudio = await probeMediaHasAudio(url);
+    if (hasAudio !== true) return false;
+  }
+
+  return true;
+}
+
 export function getInstagramShortcodeFromIdentity(postKey: unknown, postUrl: unknown): string {
   const key = typeof postKey === 'string' ? postKey.trim() : '';
   if (key && !key.startsWith('takenAt_') && /^[A-Za-z0-9_-]+$/.test(key)) return key;
@@ -388,6 +433,11 @@ export async function resolveInstagramAudioSafeMediaUrls({
 }: ResolveAudioSafeMediaParams): Promise<string[]> {
   if (!mediaUrls.some(isLikelyInstagramVideoOnlyUrl)) return mediaUrls;
 
+  if (await areSuspiciousInstagramMediaUrlsAudioSafe(mediaUrls)) {
+    console.log('[Instagram] Suspicious media URL contains an audio stream; allowing publication.');
+    return mediaUrls;
+  }
+
   const shortcode = getInstagramShortcodeFromIdentity(postKey, postUrl);
   if (!rapidApiKey || !shortcode) {
     throw new Error('Instagram returned a video-only media file. Please fetch the post again or try later.');
@@ -396,6 +446,10 @@ export async function resolveInstagramAudioSafeMediaUrls({
   const refreshed = await getInstagramPostByShortcode(shortcode, rapidApiKey);
   if (refreshed.post.mediaUrls.length && !refreshed.post.mediaUrls.some(isLikelyInstagramVideoOnlyUrl)) {
     console.log(`[Instagram] Replaced video-only media URL for ${shortcode} before publication.`);
+    return refreshed.post.mediaUrls;
+  }
+  if (refreshed.post.mediaUrls.length && await areSuspiciousInstagramMediaUrlsAudioSafe(refreshed.post.mediaUrls)) {
+    console.log(`[Instagram] Refreshed suspicious media URL for ${shortcode} contains an audio stream; allowing publication.`);
     return refreshed.post.mediaUrls;
   }
 
