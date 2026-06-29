@@ -376,6 +376,8 @@ export async function GET(req: Request) {
 
         for (const net of adaptedNetworks) {
           const pubSettings = net.publishingSettings || {};
+          const platform = (net.platform || net.name || '').toLowerCase();
+          const isTikTok = platform.includes('tiktok');
 
           const isSingleImage = !hasVideo && mediaUrls.length === 1;
           const isPhotoCarousel = !hasVideo && mediaUrls.length > 1;
@@ -398,7 +400,6 @@ export async function GET(req: Request) {
           const isAuto = !Array.isArray(mode) && mode !== 'never' && mode !== 'always';
 
           if (isAuto) {
-            const platform = (net.platform || net.name).toLowerCase();
             if (['reddit', 'tiktok', 'reels', 'youtube'].some(p => platform.includes(p))) {
               if (mediaUrls.length > 1) useSlideshow = true;
             } else if (['linkedin', 'pinterest'].some(p => platform.includes(p))) {
@@ -413,6 +414,11 @@ export async function GET(req: Request) {
             if (isMixed && mode.includes('mixed_carousel')) useSlideshow = true;
             if (isPhotoCarousel && mode.includes('photo_carousel')) useSlideshow = true;
             if (isSingleImage && mode.includes('single_image')) useSlideshow = true;
+          }
+
+          // TikTok must receive exactly one video. Never send image/carousel file_ids to it.
+          if (isTikTok && !isSingleVideo) {
+            useSlideshow = true;
           }
 
           let currentFileIds: string[] = [];
@@ -445,6 +451,13 @@ export async function GET(req: Request) {
                 fileIdsOriginal = await uploadMediaUrlsToPostMyPost(mediaUrls, postMyPostToken, ppmProjectId);
              }
              currentFileIds = fileIdsOriginal;
+          }
+
+          if (isTikTok && currentFileIds.length !== 1) {
+            console.error(
+              `Skipping TikTok ${net.name || net.accountId || 'account'} (${email}): expected exactly one video file, got ${currentFileIds.length}.`
+            );
+            continue;
           }
 
           const accountId = net.accountId;
@@ -481,7 +494,7 @@ export async function GET(req: Request) {
           if (effectivePinLink && (net.platform || net.name).toLowerCase().includes('pinterest')) {
             detail.link = effectivePinLink;
           }
-          if ((net.platform || net.name).toLowerCase().includes('tiktok')) {
+          if (isTikTok) {
             detail.tiktok_privacy_status = pubSettings.tiktokPrivacyStatus ?? 1;
             detail.tiktok_comment = pubSettings.tiktokComment ?? true;
             detail.tiktok_duet = pubSettings.tiktokDuet ?? true;

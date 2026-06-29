@@ -466,6 +466,12 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
         : 'Could not create the slideshow: Cloudinary is not configured. Check the settings or contact the administrator.';
     }
 
+    if (error.code === 'TIKTOK_REQUIRES_SINGLE_VIDEO') {
+      return language === 'ru'
+        ? 'Не получилось подготовить публикацию для TikTok: TikTok принимает только один видеофайл. Попробуйте ещё раз. Если ошибка повторится, обратитесь к администратору.'
+        : 'Could not prepare the TikTok publication: TikTok requires a single video file. Please try again. If the error repeats, contact the administrator.';
+    }
+
     if (error.code === 'TEXT_LIMIT_EXCEEDED') {
       const details = error.details || {};
       const platform = details.platformLabel || details.networkName || 'platform';

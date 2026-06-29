@@ -374,6 +374,8 @@ export async function POST(req: Request) {
     for (const candidate of claimed) {
       const net = candidate.net;
       const pubSettings = net.publishingSettings || {};
+      const platform = (net.platform || net.name || '').toLowerCase();
+      const isTikTok = platform.includes('tiktok');
 
       const isSingleImage = !hasVideo && mediaUrls.length === 1;
       const isPhotoCarousel = !hasVideo && mediaUrls.length > 1;
@@ -385,7 +387,6 @@ export async function POST(req: Request) {
       const isAuto = !Array.isArray(mode) && mode !== 'never' && mode !== 'always';
 
       if (isAuto) {
-        const platform = (net.platform || net.name || '').toLowerCase();
         if (['reddit', 'tiktok', 'reels', 'youtube'].some(p => platform.includes(p))) {
           if (mediaUrls.length > 1) useSlideshow = true;
         } else if (['linkedin', 'pinterest'].some(p => platform.includes(p))) {
@@ -400,6 +401,11 @@ export async function POST(req: Request) {
         if (isMixed && mode.includes('mixed_carousel')) useSlideshow = true;
         if (isPhotoCarousel && mode.includes('photo_carousel')) useSlideshow = true;
         if (isSingleImage && mode.includes('single_image')) useSlideshow = true;
+      }
+
+      // TikTok must receive exactly one video. Never send image/carousel file_ids to it.
+      if (isTikTok && !isSingleVideo) {
+        useSlideshow = true;
       }
 
       let currentFileIds: string[] = [];
@@ -438,6 +444,18 @@ export async function POST(req: Request) {
         currentFileIds = fileIdsOriginal;
       }
 
+      if (isTikTok && currentFileIds.length !== 1) {
+        throw new PublishRouteError(
+          "TIKTOK_REQUIRES_SINGLE_VIDEO",
+          "TikTok publication requires exactly one video file.",
+          400,
+          {
+            networkName: net.name || candidate.accountId,
+            fileCount: currentFileIds.length,
+          }
+        );
+      }
+
       accountIds.push(candidate.accountIdValue);
 
       const pubType = Number(pubSettings.publicationType || 1);
@@ -458,7 +476,7 @@ export async function POST(req: Request) {
         detail.link = effectivePinLink;
       }
 
-      if ((net.platform || net.name || '').toLowerCase().includes('tiktok')) {
+      if (isTikTok) {
         detail.tiktok_privacy_status = pubSettings.tiktokPrivacyStatus ?? 1;
         detail.tiktok_comment = pubSettings.tiktokComment ?? true;
         detail.tiktok_duet = pubSettings.tiktokDuet ?? true;
