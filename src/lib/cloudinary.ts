@@ -1,10 +1,34 @@
 import crypto from 'crypto';
+import { execFile } from 'child_process';
+import { promises as fs } from 'fs';
+import os from 'os';
+import path from 'path';
 
 interface CloudinaryConfig {
   cloudName: string;
   apiKey: string;
   apiSecret: string;
 }
+
+type DownloadedMedia = {
+  filePath: string;
+  type: 'video' | 'image';
+  index: number;
+};
+
+type MediaDimensions = {
+  width: number;
+  height: number;
+};
+
+type CloudinaryResource = {
+  public_id: string;
+  created_at: string;
+};
+
+const MEDIA_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const IMAGE_SLIDE_DURATION_SECONDS = '3.5';
+const SLIDESHOW_FPS = '30';
 
 function sha1Hex(str: string): string {
   return crypto.createHash('sha1').update(str).digest('hex');
@@ -22,29 +46,39 @@ function isVideoUrl(url: string): boolean {
   return u.endsWith('.mp4') || u.endsWith('.mov') || u.endsWith('.avi') || u.endsWith('.webm');
 }
 
-async function fetchCloudinaryDeliveryBlob(url: string, label: string): Promise<Blob> {
-  const deadline = Date.now() + 120 * 1000;
-  let lastStatus = 0;
-  let lastBody = '';
+function execFileAsync(file: string, args: string[], timeout: number): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    execFile(file, args, { timeout, maxBuffer: 1024 * 1024 }, (error, stdout, stderr) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve({ stdout, stderr });
+    });
+  });
+}
 
-  while (Date.now() < deadline) {
-    const res = await fetch(url);
+function shellQuoteForConcatFile(filePath: string): string {
+  return filePath.replace(/\\/g, '/').replace(/'/g, "'\\''");
+}
 
-    if (res.ok) {
-      return await res.blob();
-    }
+function toEvenDimension(value: number): number {
+  const rounded = Math.max(2, Math.floor(value || 2));
+  return rounded % 2 === 0 ? rounded : rounded - 1;
+}
 
-    lastStatus = res.status;
-    lastBody = await res.text().catch(() => '');
+function getDownloadedMediaType(url: string, contentType: string): 'video' | 'image' {
+  if (contentType.toLowerCase().startsWith('video/')) return 'video';
+  if (isVideoUrl(url)) return 'video';
+  return 'image';
+}
 
-    if (res.status === 400 || res.status === 401 || res.status === 403) {
-      throw new Error(`${label} failed ${res.status}: ${lastBody}`);
-    }
-
-    await new Promise(r => setTimeout(r, 5000));
-  }
-
-  throw new Error(`${label} timed out (last status ${lastStatus}): ${lastBody}`);
+function getMediaExtension(type: 'video' | 'image', contentType: string): string {
+  if (type === 'video') return '.mp4';
+  const lower = contentType.toLowerCase();
+  if (lower.includes('png')) return '.png';
+  if (lower.includes('webp')) return '.webp';
+  return '.jpg';
 }
 
 export async function uploadToCloudinary(
@@ -63,7 +97,7 @@ export async function uploadToCloudinary(
     const defaultMime = resourceType === 'video' ? 'video/mp4' : 'image/jpeg';
     const ext = resourceType === 'video' ? '.mp4' : '.jpg';
     fileObj = new File([blob], `upload_file${ext}`, { type: blob.type || defaultMime });
-  } catch (err) { }
+  } catch { }
   
   formData.append('file', fileObj);
   formData.append('api_key', conf.apiKey);
@@ -76,8 +110,9 @@ export async function uploadToCloudinary(
       method: 'POST',
       body: formData,
     });
-  } catch (e: any) {
-    throw new Error(`Cloudinary Upload Fetch Error: ${e.message}`);
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e);
+    throw new Error(`Cloudinary Upload Fetch Error: ${message}`);
   }
 
   const txt = await res.text();
@@ -94,20 +129,9 @@ export async function uploadToCloudinary(
     publicId: data.public_id,
     width: data.width,
     height: data.height,
-    format: data.format
+    format: data.format,
+    secureUrl: data.secure_url
   };
-}
-
-async function cloudinaryPingDelivery(url: string): Promise<number> {
-  try {
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: { Range: 'bytes=0-0' }
-    });
-    return res.status;
-  } catch (e) {
-    return 500;
-  }
 }
 
 export async function getCloudinaryUsage(conf: CloudinaryConfig) {
@@ -135,97 +159,134 @@ export async function getCloudinaryUsage(conf: CloudinaryConfig) {
   };
 }
 
+async function downloadMediaToTemp(url: string, dir: string, index: number): Promise<DownloadedMedia> {
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': MEDIA_USER_AGENT,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to download media ${index} (${res.status})`);
+  }
+
+  const contentType = res.headers.get('content-type') || '';
+  const type = getDownloadedMediaType(url, contentType);
+  const ext = getMediaExtension(type, contentType);
+  const filePath = path.join(dir, `source_${String(index).padStart(3, '0')}${ext}`);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  await fs.writeFile(filePath, buffer);
+
+  return { filePath, type, index };
+}
+
+async function probeMediaDimensions(filePath: string): Promise<MediaDimensions> {
+  const { stdout } = await execFileAsync('ffprobe', [
+    '-v', 'error',
+    '-show_entries', 'stream=width,height',
+    '-of', 'json',
+    filePath,
+  ], 20000);
+  const parsed = JSON.parse(stdout) as { streams?: Array<{ width?: number; height?: number }> };
+  const stream = parsed.streams?.find((entry) => entry.width && entry.height);
+  if (!stream?.width || !stream?.height) {
+    throw new Error(`Could not detect media dimensions for ${path.basename(filePath)}`);
+  }
+
+  return {
+    width: toEvenDimension(stream.width),
+    height: toEvenDimension(stream.height),
+  };
+}
+
+async function createSegment(media: DownloadedMedia, dir: string, dimensions: MediaDimensions): Promise<string> {
+  const segmentPath = path.join(dir, `segment_${String(media.index).padStart(3, '0')}.mp4`);
+  const videoFilter = [
+    `scale=${dimensions.width}:${dimensions.height}:force_original_aspect_ratio=decrease`,
+    `pad=${dimensions.width}:${dimensions.height}:(ow-iw)/2:(oh-ih)/2:black`,
+    'setsar=1',
+    'format=yuv420p',
+  ].join(',');
+
+  const inputArgs = media.type === 'image'
+    ? ['-loop', '1', '-t', IMAGE_SLIDE_DURATION_SECONDS, '-i', media.filePath]
+    : ['-i', media.filePath];
+
+  await execFileAsync('ffmpeg', [
+    '-y',
+    ...inputArgs,
+    '-vf', videoFilter,
+    '-r', SLIDESHOW_FPS,
+    '-c:v', 'libx264',
+    '-preset', 'veryfast',
+    '-crf', '23',
+    '-pix_fmt', 'yuv420p',
+    '-an',
+    segmentPath,
+  ], 180000);
+
+  return segmentPath;
+}
+
+async function concatenateSegments(segmentPaths: string[], dir: string): Promise<string> {
+  const listPath = path.join(dir, 'segments.txt');
+  const outputPath = path.join(dir, 'slideshow.mp4');
+  const listContent = segmentPaths
+    .map((segmentPath) => `file '${shellQuoteForConcatFile(segmentPath)}'`)
+    .join('\n');
+  await fs.writeFile(listPath, listContent);
+
+  await execFileAsync('ffmpeg', [
+    '-y',
+    '-f', 'concat',
+    '-safe', '0',
+    '-i', listPath,
+    '-c:v', 'libx264',
+    '-preset', 'veryfast',
+    '-crf', '23',
+    '-pix_fmt', 'yuv420p',
+    '-movflags', '+faststart',
+    '-an',
+    outputPath,
+  ], 180000);
+
+  return outputPath;
+}
+
 export async function createCloudinarySlideshowUrl(urls: string[], conf: CloudinaryConfig): Promise<string> {
   if (!conf.cloudName || !conf.apiKey || !conf.apiSecret) {
     throw new Error('Cloudinary credentials missing');
   }
   if (!urls || !urls.length) throw new Error('No URLs for slideshow');
 
-  // 1) Download and upload all sources concurrently
-  const assetPromises = urls.map(async (u, i) => {
-    if (!u) return null;
-    const isVid = isVideoUrl(u);
-    
-    const dRes = await fetch(u);
-    if (!dRes.ok) throw new Error(`Failed to download media ${u}`);
-    const blob = await dRes.blob();
-    
-    const upRes = await uploadToCloudinary(blob, isVid ? 'video' : 'image', conf);
-    return {
-      type: isVid ? 'video' : 'image',
-      publicId: upRes.publicId,
-      width: upRes.width,
-      height: upRes.height,
-      index: i
-    };
-  });
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'crosspost-slideshow-'));
 
-  const rawAssets = (await Promise.all(assetPromises)).filter((a): a is NonNullable<typeof a> => !!a);
+  try {
+    const downloaded = (await Promise.all(
+      urls.map((url, index) => url ? downloadMediaToTemp(url, tmpDir, index) : null)
+    )).filter((media): media is DownloadedMedia => Boolean(media));
 
-  if (!rawAssets.length) throw new Error('No media uploaded');
+    if (!downloaded.length) throw new Error('No media downloaded');
 
-  const baseVideo = rawAssets.find(a => a.type === 'video') || rawAssets[0];
-  const TARGET_W = baseVideo.width;
-  const TARGET_H = baseVideo.height;
-
-  // 2) Convert IMAGE to VIDEO segments concurrently
-  const videoAssetsPromises = rawAssets.map(async (asset) => {
-    if (asset.type === 'video') {
-      return asset;
-    } else {
-      const transformations = [
-        `w_${TARGET_W},h_${TARGET_H},c_pad,b_black`,
-        'du_3.5',
-        'ac_none'
-      ];
-
-      const convertUrl = `https://res.cloudinary.com/${conf.cloudName}/image/upload/${transformations.join('/')}/${asset.publicId}.mp4`;
-      const vBlob = await fetchCloudinaryDeliveryBlob(convertUrl, `Image segment convert (${asset.index})`);
-      
-      const vUpRes = await uploadToCloudinary(vBlob, 'video', conf);
-      return {
-        type: 'video' as const,
-        publicId: vUpRes.publicId,
-        width: TARGET_W,
-        height: TARGET_H,
-        index: asset.index
-      };
+    const baseMedia = downloaded.find((media) => media.type === 'video') || downloaded[0];
+    const dimensions = await probeMediaDimensions(baseMedia.filePath);
+    const segmentPaths = [];
+    for (const media of downloaded.sort((a, b) => a.index - b.index)) {
+      segmentPaths.push(await createSegment(media, tmpDir, dimensions));
     }
-  });
 
-  const videoAssets = await Promise.all(videoAssetsPromises);
+    const outputPath = await concatenateSegments(segmentPaths, tmpDir);
+    const outputBuffer = await fs.readFile(outputPath);
+    const uploadRes = await uploadToCloudinary(
+      new Blob([outputBuffer], { type: 'video/mp4' }),
+      'video',
+      conf
+    );
 
-  // 3) Splice together
-  const baseAsset = videoAssets[0];
-  const appendAssets = videoAssets.slice(1);
-
-  const transformations = [];
-  transformations.push(`w_${TARGET_W},h_${TARGET_H},c_pad,b_black`);
-
-  for (const seg of appendAssets) {
-    if (seg.type === 'video') {
-      const safe = seg.publicId.replace(/\//g, ':');
-      const layerTrans = `w_${TARGET_W},h_${TARGET_H},c_pad,b_black`;
-      transformations.push(`fl_splice,l_video:${safe}`);
-      transformations.push(layerTrans);
-      transformations.push('fl_layer_apply');
-    }
+    return uploadRes.secureUrl || `https://res.cloudinary.com/${conf.cloudName}/video/upload/${uploadRes.publicId}.mp4`;
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
   }
-
-  const finalUrl = `https://res.cloudinary.com/${conf.cloudName}/video/upload/${transformations.join('/')}/${baseAsset.publicId}.mp4`;
-
-  // 4) Poll for readiness
-  const deadline = Date.now() + 120 * 1000;
-  while (Date.now() < deadline) {
-    const code = await cloudinaryPingDelivery(finalUrl);
-    if (code === 200 || code === 206) {
-      return finalUrl;
-    }
-    if (code === 400) throw new Error('Final splice 400 error');
-    await new Promise(r => setTimeout(r, 5000));
-  }
-
-  throw new Error('Timeout waiting for slideshow');
 }
 
 export async function cleanupOldCloudinaryAssets(conf: CloudinaryConfig, maxAgeHours: number): Promise<{ deletedImages: number, deletedVideos: number }> {
@@ -261,7 +322,7 @@ export async function cleanupOldCloudinaryAssets(conf: CloudinaryConfig, maxAgeH
       }
 
       const listData = await listRes.json();
-      const resources = listData.resources || [];
+      const resources = (listData.resources || []) as CloudinaryResource[];
       nextCursor = listData.next_cursor;
 
       // 2. Filter old resources
@@ -269,12 +330,12 @@ export async function cleanupOldCloudinaryAssets(conf: CloudinaryConfig, maxAgeH
       const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
 
       const oldPublicIds = resources
-        .filter((r: any) => {
+        .filter((r) => {
           const createdAt = new Date(r.created_at).getTime();
           const isOld = (now - createdAt) > maxAgeMs;
           return isOld;
         })
-        .map((r: any) => r.public_id);
+        .map((r) => r.public_id);
 
       // 3. Delete in batches (Admin API allows up to 100 per request)
       const batchSize = 100;
