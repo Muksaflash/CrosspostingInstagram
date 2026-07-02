@@ -400,10 +400,21 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
     };
   };
 
+  type SkippedPublishAccount = {
+    accountId?: string | number;
+    networkName?: string;
+    status?: string;
+  };
+
+  type PublishedAccount = {
+    accountId?: string | number;
+    networkName?: string;
+  };
+
   type PublishResponseBody = {
     status?: string;
-    skippedDuplicates?: unknown[];
-    publishedAccounts?: unknown[];
+    skippedDuplicates?: SkippedPublishAccount[];
+    publishedAccounts?: PublishedAccount[];
     forcedDuplicate?: boolean;
   };
 
@@ -420,6 +431,58 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
       return crypto.randomUUID();
     }
     return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  };
+
+  const getSkippedAccounts = (responseBody?: PublishResponseBody): SkippedPublishAccount[] => {
+    return Array.isArray(responseBody?.skippedDuplicates) ? responseBody.skippedDuplicates : [];
+  };
+
+  const getPublishedAccounts = (responseBody?: PublishResponseBody): PublishedAccount[] => {
+    return Array.isArray(responseBody?.publishedAccounts) ? responseBody.publishedAccounts : [];
+  };
+
+  const hasPublishedAccountDetails = (responseBody?: PublishResponseBody) => {
+    return Array.isArray(responseBody?.publishedAccounts);
+  };
+
+  const accountMatches = (accountId: string | number | undefined, other: string | number | undefined) => {
+    if (accountId === undefined || accountId === null || other === undefined || other === null) return false;
+    return String(accountId) === String(other);
+  };
+
+  const formatSkippedNames = (accounts: SkippedPublishAccount[]) => {
+    const names = accounts
+      .map((account) => account.networkName || account.accountId)
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(', ');
+    const remaining = accounts.length > 3 ? ` +${accounts.length - 3}` : '';
+    return names ? `: ${names}${remaining}` : '';
+  };
+
+  const getSkippedPublishMessage = (responseBody: PublishResponseBody, publishedCount: number) => {
+    const skipped = getSkippedAccounts(responseBody);
+    const unavailable = skipped.filter((account) => account.status === 'unavailable_in_postmypost');
+    const duplicates = skipped.filter((account) => account.status !== 'unavailable_in_postmypost');
+
+    if (unavailable.length && duplicates.length) {
+      return language === 'ru'
+        ? `Опубликовано. Дубли пропущены: ${duplicates.length}. Недоступные аккаунты PostMyPost пропущены: ${unavailable.length}${formatSkippedNames(unavailable)}.`
+        : `Published. Duplicate account(s) skipped: ${duplicates.length}. Unavailable PostMyPost account(s) skipped: ${unavailable.length}${formatSkippedNames(unavailable)}.`;
+    }
+
+    if (unavailable.length) {
+      return language === 'ru'
+        ? `${publishedCount ? 'Опубликовано.' : 'Не опубликовано.'} Недоступные аккаунты PostMyPost пропущены: ${unavailable.length}${formatSkippedNames(unavailable)}.`
+        : `${publishedCount ? 'Published.' : 'Not published.'} Unavailable PostMyPost account(s) skipped: ${unavailable.length}${formatSkippedNames(unavailable)}.`;
+    }
+
+    if (duplicates.length) {
+      if (!publishedCount) return t('dashboard', 'publishAlerts.duplicateSkipped');
+      return formatDashboardText('publishAlerts.duplicatesSkipped', { count: duplicates.length });
+    }
+
+    return '';
   };
 
   const askDuplicatePublishConfirm = (message: string) => {
@@ -591,9 +654,9 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
       };
 
       let responseBody = await sendPublishAllRequest();
-      let skippedCount = responseBody?.skippedDuplicates?.length || 0;
-      let publishedCount = Array.isArray(responseBody?.publishedAccounts)
-        ? responseBody.publishedAccounts.length
+      let skippedCount = getSkippedAccounts(responseBody).length;
+      let publishedCount = hasPublishedAccountDetails(responseBody)
+        ? getPublishedAccounts(responseBody).length
         : (responseBody?.status === 'skipped' ? 0 : enabledNetworks.length);
 
       if (skippedCount && !publishedCount && responseBody?.status === 'skipped') {
@@ -608,22 +671,40 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
         }
 
         responseBody = await sendPublishAllRequest(true, createForceAttemptId());
-        skippedCount = responseBody?.skippedDuplicates?.length || 0;
-        publishedCount = Array.isArray(responseBody?.publishedAccounts)
-          ? responseBody.publishedAccounts.length
+        skippedCount = getSkippedAccounts(responseBody).length;
+        publishedCount = hasPublishedAccountDetails(responseBody)
+          ? getPublishedAccounts(responseBody).length
           : (responseBody?.status === 'skipped' ? 0 : enabledNetworks.length);
       }
 
+      const publishedAccounts = getPublishedAccounts(responseBody);
+      const hasPublishedDetails = hasPublishedAccountDetails(responseBody);
+      const skippedAccounts = getSkippedAccounts(responseBody);
       enabledNetworks.forEach(net => {
         const idx = newNetworks.findIndex(n => n === net);
-        if (idx !== -1) newNetworks[idx].status = 'success';
+        if (idx === -1) return;
+
+        if (hasPublishedDetails) {
+          const wasPublished = publishedAccounts.some((account) => accountMatches(account.accountId, net.accountId));
+          const skipped = skippedAccounts.find((account) => accountMatches(account.accountId, net.accountId));
+          if (wasPublished) {
+            newNetworks[idx].status = 'success';
+            newNetworks[idx].errorMsg = undefined;
+          } else if (skipped) {
+            newNetworks[idx].status = 'idle';
+            newNetworks[idx].errorMsg = skipped.status === 'unavailable_in_postmypost'
+              ? (language === 'ru' ? 'Аккаунт недоступен в PostMyPost' : 'Account is unavailable in PostMyPost')
+              : undefined;
+          } else {
+            newNetworks[idx].status = 'idle';
+          }
+        } else {
+          newNetworks[idx].status = 'success';
+          newNetworks[idx].errorMsg = undefined;
+        }
       });
       if (skippedCount) {
-        if (!publishedCount) {
-          alert(t('dashboard', 'publishAlerts.duplicateSkipped'));
-        } else {
-          alert(formatDashboardText('publishAlerts.duplicatesSkipped', { count: skippedCount }));
-        }
+        alert(getSkippedPublishMessage(responseBody, publishedCount));
         setNetworks([...newNetworks]);
         return;
       }
@@ -781,9 +862,9 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
 
       let responseBody = await sendPublishSingleRequest();
 
-      let skippedCount = responseBody?.skippedDuplicates?.length || 0;
-      let publishedCount = Array.isArray(responseBody?.publishedAccounts)
-        ? responseBody.publishedAccounts.length
+      let skippedCount = getSkippedAccounts(responseBody).length;
+      let publishedCount = hasPublishedAccountDetails(responseBody)
+        ? getPublishedAccounts(responseBody).length
         : (responseBody?.status === 'skipped' ? 0 : 1);
       if (skippedCount && !publishedCount && responseBody?.status === 'skipped') {
         const confirmed = await askDuplicatePublishConfirm(
@@ -796,20 +877,26 @@ export default function Dashboard({ initialNetworks, initialPost }: { initialNet
         }
 
         responseBody = await sendPublishSingleRequest(true, createForceAttemptId());
-        skippedCount = responseBody?.skippedDuplicates?.length || 0;
-        publishedCount = Array.isArray(responseBody?.publishedAccounts)
-          ? responseBody.publishedAccounts.length
+        skippedCount = getSkippedAccounts(responseBody).length;
+        publishedCount = hasPublishedAccountDetails(responseBody)
+          ? getPublishedAccounts(responseBody).length
           : (responseBody?.status === 'skipped' ? 0 : 1);
       }
 
       if (skippedCount && !publishedCount) {
         newNetworks[index].status = 'idle';
-        alert(t('dashboard', 'publishAlerts.duplicateSkipped'));
+        alert(getSkippedPublishMessage(responseBody, publishedCount));
         setNetworks([...newNetworks]);
         return;
       }
 
       newNetworks[index].status = 'success';
+      newNetworks[index].errorMsg = undefined;
+      if (skippedCount) {
+        alert(getSkippedPublishMessage(responseBody, publishedCount));
+        setNetworks([...newNetworks]);
+        return;
+      }
       alert(formatDashboardText('publishAlerts.publishedTo', { network: networks[index].name }));
     } catch (err: any) {
       console.error(err);
