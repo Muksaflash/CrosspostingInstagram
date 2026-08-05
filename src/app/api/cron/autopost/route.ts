@@ -325,6 +325,7 @@ export async function GET(req: Request) {
             rapidApiKey,
             postKey: post.shortcode || post.postKey,
             postUrl: post.postUrl,
+            retryShortcode: false,
           });
         } catch (mediaErr: unknown) {
           const message = mediaErr instanceof Error ? mediaErr.message : String(mediaErr);

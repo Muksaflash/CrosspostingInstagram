@@ -30,14 +30,15 @@ function execFileAsync(file: string, args: string[], timeout: number): Promise<{
 function isRetryableInstagramError(error: unknown): boolean {
   const message = getErrorMessage(error).toLowerCase();
 
+  if (
+    message.includes('link not found') ||
+    message.includes('download link not found') ||
+    message.includes('rapidapi error: 404')
+  ) return false;
   if (message.includes('rapidapi error: 429')) return false;
   if (message.includes('rapidapi error: 401') || message.includes('rapidapi error: 403')) return false;
 
   return (
-    message.includes('link not found') ||
-    message.includes('download link not found') ||
-    message.includes('empty response') ||
-    message.includes('empty array response') ||
     message.includes('rapidapi error: 500') ||
     message.includes('rapidapi error: 502') ||
     message.includes('rapidapi error: 503') ||
@@ -138,6 +139,11 @@ type ResolveAudioSafeMediaParams = {
   rapidApiKey?: string;
   postKey?: unknown;
   postUrl?: unknown;
+  retryShortcode?: boolean;
+};
+
+type InstagramShortcodeFetchOptions = {
+  retry?: boolean;
 };
 
 type InstagramMediaCandidate = {
@@ -393,10 +399,7 @@ export async function getRecentInstagramPosts(usernameUrl: string, rapidApiKey: 
       // We treat the first item in the group as the main metadata source
       const mainItem = items[0];
       if (mainItem) {
-        recentPosts.push(await processInstagramItem(mainItem, data, {
-          rapidApiKey,
-          allowShortcodeFallback: true,
-        }));
+        recentPosts.push(buildInstagramPost(mainItem, data));
       }
     }
 
@@ -407,8 +410,12 @@ export async function getRecentInstagramPosts(usernameUrl: string, rapidApiKey: 
   });
 }
 
-export async function getInstagramPostByShortcode(shortcode: string, rapidApiKey: string): Promise<{ post: InstagramPost, quota: InstagramQuota }> {
-  return withInstagramRetry('post by shortcode fetch', async () => {
+export async function getInstagramPostByShortcode(
+  shortcode: string,
+  rapidApiKey: string,
+  options: InstagramShortcodeFetchOptions = {}
+): Promise<{ post: InstagramPost, quota: InstagramQuota }> {
+  const fetchOnce = async () => {
     const { data, quota } = await fetchMediaByShortcode(shortcode, rapidApiKey);
     const dataArray = normalizeInstagramDataArray(data);
     if (!dataArray.length) {
@@ -422,7 +429,10 @@ export async function getInstagramPostByShortcode(shortcode: string, rapidApiKey
       }),
       quota,
     };
-  });
+  };
+
+  if (options.retry === false) return fetchOnce();
+  return withInstagramRetry('post by shortcode fetch', fetchOnce);
 }
 
 export async function resolveInstagramAudioSafeMediaUrls({
@@ -430,6 +440,7 @@ export async function resolveInstagramAudioSafeMediaUrls({
   rapidApiKey,
   postKey,
   postUrl,
+  retryShortcode = true,
 }: ResolveAudioSafeMediaParams): Promise<string[]> {
   if (!mediaUrls.some(isLikelyInstagramVideoOnlyUrl)) return mediaUrls;
 
@@ -443,7 +454,9 @@ export async function resolveInstagramAudioSafeMediaUrls({
     throw new Error('Instagram returned a video-only media file. Please fetch the post again or try later.');
   }
 
-  const refreshed = await getInstagramPostByShortcode(shortcode, rapidApiKey);
+  const refreshed = await getInstagramPostByShortcode(shortcode, rapidApiKey, {
+    retry: retryShortcode,
+  });
   if (refreshed.post.mediaUrls.length && !refreshed.post.mediaUrls.some(isLikelyInstagramVideoOnlyUrl)) {
     console.log(`[Instagram] Replaced video-only media URL for ${shortcode} before publication.`);
     return refreshed.post.mediaUrls;

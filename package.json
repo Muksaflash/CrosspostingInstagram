@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:rapidapi-regression": "node --experimental-test-module-mocks --test tests/rapidapi-overuse.test.mjs"
   },
   "dependencies": {
     "@auth/firebase-adapter": "^2.11.1",
