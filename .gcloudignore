@@ -1,0 +1,36 @@
+# Reuse repository-local exclusions as the baseline for source uploads.
+#!include:.gitignore
+
+# Cloud SDK and local build state.
+.gcloudignore
+.git
+.next
+node_modules
+
+# Environment and deployment configuration.
+.env*
+env_vars.yaml
+service.yaml
+new_service.yaml
+service-account*.json
+
+# Diagnostic output.
+*.log
+api-logs.txt
+build-log.txt
+*-logs.json
+logs-*.json
+
+# Local diagnostics, migration helpers, and test-only assets.
+check*.js
+check*.ts
+patch*.js
+test-*.js
+test-*.ts
+test-*.css
+tests
+**/*.test.ts
+**/*.benchmark.ts
+update-secrets.js
+CRON_SETUP.md
+README.md
